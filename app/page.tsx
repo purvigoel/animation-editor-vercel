@@ -126,10 +126,11 @@ export default function Home() {
 
 
   return (
-    <main className="h-full w-full h-screen">
-      <div className="flex flex-col w-full h-full">
-        {/* Top bar */}
-        <div className="flex  w-full bg-gray-100 justify-between p-3">
+
+    <div className="flex flex-col h-full" style={{ height: "100vh !important", paddingBottom: "3rem" }}>
+      {/* Top bar */}
+      <div className="bg-gray-100 p-2">
+        <div className="flex w-full justify-between">
           <Popover
             isOpen={isPopoverOpen}
             positions={['bottom']}
@@ -175,35 +176,26 @@ export default function Home() {
             <FontAwesomeIcon icon={faDownload} className="px-1" />
           </button>
         </div>
-        {/* Canvas */}
-        <div className="flex-grow flex flex-col w-full h-full bg-white text-white">
-          <canvas id="mainCanvas" className="border w-full h-full" width="500" height="500"></canvas>
-        </div>
-        {/* Bottom bar */}
-        <div className="flex flex-col w-full bg-gray-100 text-gray-500  p-3">
-          <div className="flex flex-row justify-between">
-            <div className="mr-3 ml-1">0</div>
-            <input type="range" className="w-full bg-white" min={0} max={totalFrames} value={currentFrame} onChange={(e) =>{
-               const frame = parseInt((e.target as HTMLInputElement).value, 10);
-              
-               if (!isNaN(frame)) {
-                 const frame_constrained = frame > totalFrames ? totalFrames : frame < 0 ? 0 : frame;
-                 setCurrentFrame(frame_constrained);
-                 globalTimeline.curr_time = frame_constrained;
-                 params["draw_once"] = true;
-                 params["currTime"] = frame_constrained;
-               } else {
-                 setCurrentFrame(0);
-               }
-              }} />
-            <div className="ml-3 mr-1">{totalFrames}</div>
-          </div>
-
-        </div>
-
 
       </div>
-    </main>
+      {/* Canvas */}
+      <div className="flex flex-col bg-white text-white flex-grow">
+        <canvas id="mainCanvas" className="border border-red-300 h-full"></canvas>
+      </div>
+      {/* Bottom bar */}
+      <div className="p-2 fixed bottom-0 w-full bg-gray-100"
+        style={{ height: "3rem" }}
+      >
+        <div className="flex flex-row justify-between mt-1">
+          <div className="mr-3 ml-1">0</div>
+          <input type="range" className="w-full bg-white" min={0} max={totalFrames} value={currentFrame} onChange={(e) => setCurrentFrame(parseInt(e.target.value, 10) || 0)} />
+          <div className="ml-3 mr-1">{totalFrames}</div>
+        </div>
+
+      </div>
+
+
+    </div>
   );
 }
 
