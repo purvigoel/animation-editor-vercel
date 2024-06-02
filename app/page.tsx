@@ -19,18 +19,32 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between">
-      <div className="w-full bg-gray-400 p-2 text-white flex justify-between fixed top-0">
-        <button className="bg-white text-red-500 p-2 rounded">Button 1</button>
-        <button className="bg-white text-red-500 p-2 rounded">Button 2</button>
-        <button className="bg-white text-red-500 p-2 rounded">Button 3</button>
+    <main className="h-full w-full h-screen">
+      <div className="flex flex-col w-full h-full bg-red-500 text-white">
+        {/* Top bar */}
+        <div className="flex  w-full justify-between  opacity-50 p-3">
+          <button className="bg-white text-red-500 p-1 rounded">Button 1</button>
+          <button className="bg-white text-red-500 p-1 rounded">Button 2</button>
+          <button className="bg-white text-red-500 p-1 rounded">Button 3</button>
+        </div>
+        {/* Canvas */}
+        <div className="flex-grow flex flex-col w-full h-full bg-blue-500 text-white">
+          <canvas id="mainCanvas" className="border border-green-500 bg-purple w-full h-full"></canvas>
+        </div>
+        {/* Bottom bar */}
+        <div className="flex flex-col w-full bg-gray-300 text-white p-3">
+          <input type="range" className="w-full bg-white" />
+        </div>
+
+
       </div>
-      <div className="flex-grow flex flex-col items-center justify-center w-full">
-        <canvas id="mainCanvas" className="border border-red-500 bg-white w-full"></canvas>
+      {/* <div className="w-full bg-gray-400 p-2 text-white flex justify-between fixed top-0">
+
       </div>
-      <div className="w-full bg-gray-400 p-2 text-white flex justify-between fixed bottom-0">
-        <input type="range" className="mt-4 w-full bg-white" />
+      <div className="flex-grow flex flex-col items-center justify-center w-full h-full">
+        
       </div>
+  */}
     </main>
   );
 }
