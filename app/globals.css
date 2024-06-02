@@ -11,14 +11,6 @@
   /* White background */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
-
 body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(to bottom,
@@ -30,4 +22,47 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+/* Custom styles for the range input */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 8px;
+  background: #fecaca;
+  border-radius: 5px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #ef4444;
+  /* text-red-500 */
+  border-radius: 50%;
+  cursor: pointer;
+  margin-top: -4px;
+  /* Center the thumb */
+}
+
+input[type="range"]::-moz-range-track {
+  width: 100%;
+  height: 8px;
+  background: #fecaca;
+  /* bg-red-200 */
+  border-radius: 5px;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #ef4444;
+  /* text-red-500 */
+  border-radius: 50%;
+  cursor: pointer;
 }

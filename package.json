@@ -1,5 +1,5 @@
 {
-  "name": "nextjs",
+  "name": "animation-editor",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,10 +10,13 @@
   },
   "dependencies": {
     "@tensorflow/tfjs-node": "^4.19.0",
-    "next": "14.2.3",
     "npyjs": "^0.6.0",
+    "@fortawesome/free-solid-svg-icons": "^6.5.2",
+    "@fortawesome/react-fontawesome": "^0.2.2",
+    "next": "14.2.3",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "react-tiny-popover": "^8.0.4"
   },
   "devDependencies": {
     "@types/node": "^20",

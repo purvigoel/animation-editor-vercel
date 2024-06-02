@@ -1,10 +1,11 @@
 export class Timeline{
-    constructor(params, total_frames){
+    constructor(params, total_frames, reactSetFrames){
         this.curr_time = 0;
         this.bodies = [];
         this.total_frames = total_frames;
         this.render_function = null;
         this.params = params;
+        this.reactSetFrames = reactSetFrames;
 
         this.timeline_div = document.getElementById('timeline');
         // this.timelineButton = document.getElementById('timeline-button');
@@ -64,6 +65,7 @@ export class Timeline{
 
     increment_time_visual(){
         let currentFrame = this.curr_time;
+        
         // let timelineWidth = this.timeline_div.clientWidth;
         //let buttonPosition = (currentFrame / this.total_frames) * timelineWidth;
         //this.timelineButton.style.left = `${buttonPosition}px`;
