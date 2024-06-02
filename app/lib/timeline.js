@@ -7,7 +7,9 @@ export class Timeline{
         this.params = params;
         this.reactSetFrames = reactSetFrames;
 
-        this.timeline_div = document.getElementById('timeline');
+        //this.timeline_div = document.getElementById('timeline');
+        
+        
         // this.timelineButton = document.getElementById('timeline-button');
 
         // this.timelineButton.addEventListener('mousedown', (event) => {

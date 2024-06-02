@@ -47,6 +47,17 @@ export default function Home() {
       await actor.init();
       actorRenderer = new ActorRenderer(gl, actor);
     };
+
+    const handleFrameChange = (frame: number) => {
+        if (globalTimeline) {
+          globalTimeline.curr_time = frame;
+          params["currTime"] = frame;
+          params["draw_once"] = true;
+        }
+      };
+
+    document.addEventListener('frameChange', (e: Event) => handleFrameChange((e as CustomEvent).detail));
+      
   
     let lastFrameTime = 0;
     let frameDuration = 1000 / 40;
@@ -82,8 +93,7 @@ export default function Home() {
         
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         setCurrentFrame(globalTimeline.curr_time);
-        console.log(currentFrame);
-
+        
         let to_skin = actor.get_skel_at_time( globalTimeline.curr_time);
         var myArray = new Float32Array(to_skin.flat());
         actorRenderer.render(gl, myArray);
@@ -180,7 +190,7 @@ export default function Home() {
       </div>
       {/* Canvas */}
       <div className="flex flex-col bg-white text-white flex-grow">
-        <canvas id="mainCanvas" className="border border-red-300 h-full"></canvas>
+        <canvas id="mainCanvas" className="border border-red-300 h-full" width="500px" height="500px"></canvas>
       </div>
       {/* Bottom bar */}
       <div className="p-2 fixed bottom-0 w-full bg-gray-100"
@@ -188,7 +198,17 @@ export default function Home() {
       >
         <div className="flex flex-row justify-between mt-1">
           <div className="mr-3 ml-1">0</div>
-          <input type="range" className="w-full bg-white" min={0} max={totalFrames} value={currentFrame} onChange={(e) => setCurrentFrame(parseInt(e.target.value, 10) || 0)} />
+          <input type="range" className="w-full bg-white" min={0} max={totalFrames} value={currentFrame} onChange={(e) => {
+            const frame = parseInt(e.target.value, 10);
+            if (!isNaN(frame)) {
+              const frame_constrained = frame > totalFrames ? totalFrames : frame < 0 ? 0 : frame;
+              setCurrentFrame(frame_constrained);
+              const event = new CustomEvent('frameChange', { detail: frame_constrained });
+              document.dispatchEvent(event);
+            } else {
+              setCurrentFrame(0);
+            }
+          }} />
           <div className="ml-3 mr-1">{totalFrames}</div>
         </div>
 
