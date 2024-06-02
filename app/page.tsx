@@ -44,7 +44,7 @@ export default function Home() {
             <input
               type="number"
               name="frameInput"
-              className="bg-white text-black p-2 rounded w-16 "
+              className="bg-white text-gray-500 p-2 rounded w-16 "
               value={currentFrame == 0 ? "" : currentFrame}
               onBlur={(e) => {
                 const frame = parseInt((e.target as HTMLInputElement).value, 10);
@@ -62,7 +62,7 @@ export default function Home() {
                 }
               }}
             />
-            <span className="p-2 rounded mx-2">
+            <span className="p-2 rounded mx-2 ">
               / {totalFrames}
             </span>
           </form>
@@ -72,11 +72,16 @@ export default function Home() {
         </div>
         {/* Canvas */}
         <div className="flex-grow flex flex-col w-full h-full bg-white text-white">
-          <canvas id="mainCanvas" className="border border-black w-full h-full"></canvas>
+          <canvas id="mainCanvas" className="border w-full h-full"></canvas>
         </div>
         {/* Bottom bar */}
-        <div className="flex flex-col w-full bg-gray-200 text-white p-3">
-          <input type="range" className="w-full bg-white" min={0} max={totalFrames} value={currentFrame} onChange={(e) => setCurrentFrame(parseInt(e.target.value, 10) || 0)} />
+        <div className="flex flex-col w-full bg-gray-100 text-gray-500  p-3">
+          <div className="flex flex-row justify-between">
+            <div className="mr-3 ml-1">0</div>
+            <input type="range" className="w-full bg-white" min={0} max={totalFrames} value={currentFrame} onChange={(e) => setCurrentFrame(parseInt(e.target.value, 10) || 0)} />
+            <div className="ml-3 mr-1">{totalFrames}</div>
+          </div>
+
         </div>
 
 
