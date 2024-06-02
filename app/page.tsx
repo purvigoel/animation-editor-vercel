@@ -34,6 +34,7 @@ export default function Home() {
     console.log("Downloading...");
   }
 
+  // TODO: Add buttons for each joint, and sync approriately
   const popoverContent = () => {
     return (
       <div className="bg-white text-gray-500 p-3 border border-gray-300 w-50 rounded shadow ml-4">
