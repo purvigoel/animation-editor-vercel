@@ -2,11 +2,15 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faDownload, faAngleDoubleRight, faAngleDown, faAngleUp } from '@fortawesome/free-solid-svg-icons';
+import { Popover } from 'react-tiny-popover';
 
 export default function Home() {
 
   const [currentFrame, setCurrentFrame] = useState(0);
   const [totalFrames, setTotalFrames] = useState(60);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
 
   useEffect(() => {
@@ -30,6 +34,21 @@ export default function Home() {
     console.log("Downloading...");
   }
 
+  const popoverContent = () => {
+    return (
+      <div className="bg-white text-gray-500 p-3 border border-gray-300 w-50 rounded shadow ml-4">
+        <h3 className="text-lg font-semibold mb-2">Frame {currentFrame}</h3>
+
+        ~ code here for buttons ~
+        <div className="flex flex-row justify-between">
+          <div className="mr-3 ml-1">0</div>
+          <input type="range" className="w-full bg-white" min={0} max={totalFrames} value={currentFrame} onChange={(e) => setCurrentFrame(parseInt(e.target.value, 10) || 0)} />
+          <div className="ml-3 mr-1">{totalFrames}</div>
+        </div>
+      </div>
+    )
+  }
+
 
 
   return (
@@ -37,9 +56,20 @@ export default function Home() {
       <div className="flex flex-col w-full h-full">
         {/* Top bar */}
         <div className="flex  w-full bg-gray-100 justify-between p-3">
-          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
-            Joint Positions
-          </button>
+          <Popover
+            isOpen={isPopoverOpen}
+            positions={['bottom']}
+            content={popoverContent()}
+          >
+            <button
+              className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2"
+              onClick={() => setIsPopoverOpen(!isPopoverOpen)}
+            >
+              Joints
+              {isPopoverOpen ? <FontAwesomeIcon icon={faAngleDown} className="px-1" /> : <FontAwesomeIcon icon={faAngleUp} className="px-1" />}
+            </button>
+
+          </Popover>
           <form className="flex">
             <input
               type="number"
@@ -66,8 +96,8 @@ export default function Home() {
               / {totalFrames}
             </span>
           </form>
-          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
-            Download
+          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={handleDownload}>
+            <FontAwesomeIcon icon={faDownload} className="px-1" />
           </button>
         </div>
         {/* Canvas */}
