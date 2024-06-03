@@ -72,34 +72,6 @@ const fragmentShaderSource = `
     }
 `;
 
-const floorVertexShaderSource = `
-    attribute vec3 a_position;
-    attribute vec3 a_normal;
-    uniform mat4 u_matrix;
-    varying vec3 vNormal;
-    varying vec3 vPosition;
-
-    void main() {
-        vNormal = a_normal;
-        vPosition = (u_matrix * vec4(a_position, 1.0)).xyz;
-        gl_Position = u_matrix * vec4(a_position, 1.0);
-    }
-`;
-
-const floorFragmentShaderSource = `
-    precision mediump float;
-    varying vec3 vNormal;
-    varying vec3 vPosition;
-
-    void main() {
-        vec3 lightDir = normalize(vec3(0.0, 1.0, 0.0));
-        float diff = max(dot(vNormal, lightDir), 0.0);
-        vec3 diffuse = diff * vec3(0.8, 0.8, 0.8);
-        vec3 ambient = vec3(0.2, 0.2, 0.2);
-        gl_FragColor = vec4(diffuse + ambient, 1.0);
-    }
-`;
-
 export function createShader(gl, type, source) {
     const shader = gl.createShader(type);
     gl.shaderSource(shader, source);

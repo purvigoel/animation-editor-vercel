@@ -9,6 +9,7 @@ import {Timeline} from "./lib/timeline.js";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDownload, faAngleDoubleRight, faAngleDown, faAngleUp } from '@fortawesome/free-solid-svg-icons';
 import { Popover } from 'react-tiny-popover';
+import { FloorRenderer } from "./lib/floor_renderer";
 
 
 export default function Home() {
@@ -31,7 +32,7 @@ export default function Home() {
     if (isInitializedRef.current) return; // Prevent re-initialization
     isInitializedRef.current = true;
 
-    
+    let floorRenderer: FloorRenderer | null = null;
     let actorRenderer: ActorRenderer | null = null;
     let actor: Actor | null = null;
     const canvas = document.getElementById("mainCanvas") as HTMLCanvasElement;
@@ -41,11 +42,25 @@ export default function Home() {
     
     //let globalTimeline = new Timeline(params, tot_frames);
     
+    const resizeCanvas = () => {
+      if (canvas) {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+      }
+    };
+    
+    resizeCanvas(); // Initial resize
+    window.addEventListener('resize', resizeCanvas); 
+
     const initializeActor = async () => {
       console.log("initializing actor");
       actor = new Actor(tot_frames);
       await actor.init();
       actorRenderer = new ActorRenderer(gl, actor);
+    };
+
+    const initializeFloor = () => {
+      floorRenderer = new FloorRenderer(gl);
     };
 
     const handleFrameChange = (frame: number) => {
@@ -84,7 +99,7 @@ export default function Home() {
 
       params["draw_once"] = false;
 
-      if(gl && actor && actorRenderer){
+      if(gl && actor && actorRenderer && floorRenderer){
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clearDepth(1.0);
@@ -97,12 +112,15 @@ export default function Home() {
         let to_skin = actor.get_skel_at_time( globalTimeline.curr_time);
         var myArray = new Float32Array(to_skin.flat());
         actorRenderer.render(gl, myArray);
+
+        floorRenderer.render(gl);
       }
 
       requestAnimationFrame(renderLoop);
     }
     console.log("use effect");
     initializeActor();
+    initializeFloor();
 
     addAllEvents(canvas, renderLoop, params);
 
@@ -190,7 +208,7 @@ export default function Home() {
       </div>
       {/* Canvas */}
       <div className="flex flex-col bg-white text-white flex-grow">
-        <canvas id="mainCanvas" className="border border-red-300 h-full" width="500px" height="500px"></canvas>
+        <canvas id="mainCanvas" className="border border-red-300 h-full"></canvas>
       </div>
       {/* Bottom bar */}
       <div className="p-2 fixed bottom-0 w-full bg-gray-100"

@@ -17,6 +17,11 @@ export class ActorRenderer{
         this.positions = body.template_positions;
         this.faceInds = body.template_faces;
 
+        this.positionLocation = null;
+        this.boneIndexLocation = null;
+        this.boneWeightLocation = null;
+        this.normalLocation = null;
+
         this.initialize_shader_program(gl);
         this.initialize_buffers(gl)
     }
@@ -32,25 +37,28 @@ export class ActorRenderer{
         const positionLocation = gl.getAttribLocation(this.program, 'a_position');
         gl.enableVertexAttribArray(positionLocation);
         gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
+        this.positionLocation = positionLocation;
 
         this.boneIndexBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.boneIndexBuffer);
         const boneIndexLocation = gl.getAttribLocation(this.program, 'a_JOINTS');
         gl.enableVertexAttribArray(boneIndexLocation);
         gl.vertexAttribPointer(boneIndexLocation, 4, gl.FLOAT, false, 0, 0);
+        this.boneIndexLocation = boneIndexLocation;
 
         this.boneWeightBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.boneWeightBuffer);
         const boneWeightLocation = gl.getAttribLocation(this.program, 'a_WEIGHTS');
         gl.enableVertexAttribArray(boneWeightLocation);
         gl.vertexAttribPointer(boneWeightLocation, 4, gl.FLOAT, false, 0, 0);
+        this.boneWeightLocation = boneWeightLocation;
 
         this.normalBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
         const normalLocation = gl.getAttribLocation(this.program, 'a_normal');
         gl.enableVertexAttribArray(normalLocation);
         gl.vertexAttribPointer(normalLocation, 3, gl.FLOAT, false, 0, 0);
-
+        this.normalLocation = normalLocation;
        
         this.lineIndexBuffer = gl.createBuffer();
         this.uniformArrayLocation = gl.getUniformLocation(this.program, 'u_uniformArray');
@@ -58,15 +66,23 @@ export class ActorRenderer{
 
     load_buffers(gl, A_matrix){
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
+        gl.enableVertexAttribArray(this.positionLocation);
+        gl.vertexAttribPointer(this.positionLocation, 3, gl.FLOAT, false, 0, 0);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.positions), gl.STATIC_DRAW);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.boneIndexBuffer);
+        gl.enableVertexAttribArray(this.boneIndexLocation);
+        gl.vertexAttribPointer(this.boneIndexLocation, 4, gl.FLOAT, false, 0, 0);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.boneInds), gl.STATIC_DRAW);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.boneWeightBuffer);
+        gl.enableVertexAttribArray(this.boneWeightLocation);
+        gl.vertexAttribPointer(this.boneWeightLocation, 4, gl.FLOAT, false, 0, 0);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.boneWeights), gl.STATIC_DRAW);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
+        gl.enableVertexAttribArray(this.normalLocation);
+        gl.vertexAttribPointer(this.normalLocation, 3, gl.FLOAT, false, 0, 0);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.normals), gl.STATIC_DRAW);
 
         gl.uniform1fv(this.uniformArrayLocation, A_matrix);
