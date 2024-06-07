@@ -19,7 +19,7 @@ export class Actor {
 
         let [joints, mesh, A, T] = await smpl.forward();
 
-        let skel = new Skeleton(joints, this.tot_frames, mesh, A, T, true);
+        let skel = new Skeleton(joints, this.tot_frames, mesh, A, joints, true);
         await skel.init_skel();
 
         this.smpl = smpl;
@@ -103,4 +103,10 @@ export class Actor {
     get_skel_at_time(time){
         return this.skeleton.A[time].flat();
     }
+
+    async update_pose(frame, rotmat, joint){
+        let [joints, A] = await this.smpl.update_pose_skinning(frame, rotmat, joint);
+        this.skeleton.update_skel_skinning(A, joints);
+    }
 }
+

@@ -10,6 +10,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDownload, faAngleDoubleRight, faAngleDown, faAngleUp } from '@fortawesome/free-solid-svg-icons';
 import { Popover } from 'react-tiny-popover';
 import { FloorRenderer } from "./lib/floor_renderer";
+import {AngleControllerRenderer} from "./lib/angle_controller_renderer";
+import {angle_to_rotmat} from "./lib/angle_controller";
+import { SkeletonRenderer } from "./lib/skeleton_renderer";
 
 
 export default function Home() {
@@ -24,6 +27,7 @@ export default function Home() {
     pause: false,
     draw_once: false,
     currTime: 0,
+    previousValues: {0: 0}
   };
   const tot_frames = 60;
   let globalTimeline = new Timeline(params, tot_frames);
@@ -34,6 +38,9 @@ export default function Home() {
 
     let floorRenderer: FloorRenderer | null = null;
     let actorRenderer: ActorRenderer | null = null;
+    let angleControllerRenderer: AngleControllerRenderer | null = null;
+    let skeletonRenderer: SkeletonRenderer | null = null;
+
     let actor: Actor | null = null;
     const canvas = document.getElementById("mainCanvas") as HTMLCanvasElement;
     const gl = canvas.getContext('webgl');
@@ -57,11 +64,17 @@ export default function Home() {
       actor = new Actor(tot_frames);
       await actor.init();
       actorRenderer = new ActorRenderer(gl, actor);
+      skeletonRenderer = new SkeletonRenderer(gl, tot_frames, actor);
+      
     };
 
     const initializeFloor = () => {
       floorRenderer = new FloorRenderer(gl);
     };
+
+    const initializeAngleControlRenderer = () => {
+      angleControllerRenderer = new AngleControllerRenderer(gl);
+    }
 
     const handleFrameChange = (frame: number) => {
         if (globalTimeline) {
@@ -72,8 +85,22 @@ export default function Home() {
       };
 
     document.addEventListener('frameChange', (e: Event) => handleFrameChange((e as CustomEvent).detail));
-      
+    
+    const handleAngleChange = (angle: number) => {
+      if (actor) {
+        const previousAngle = parseFloat(params.previousValues[0].toString()) * Math.PI / 180;
+        params.previousValues[0] = angle;
+        const rotmat = angle_to_rotmat(0, angle * (Math.PI / 180) - previousAngle);
+        actor.update_pose(0, rotmat, 0);
+        params["draw_once"] = true;
+      }
+    };
+
+    document.addEventListener('angleChange', (e: Event) => handleAngleChange((e as CustomEvent).detail));
   
+  
+    console.log(document.getElementById("angleContainer"));
+    
     let lastFrameTime = 0;
     let frameDuration = 1000 / 40;
     
@@ -99,7 +126,7 @@ export default function Home() {
 
       params["draw_once"] = false;
 
-      if(gl && actor && actorRenderer && floorRenderer){
+      if(gl && actor && actorRenderer && floorRenderer && angleControllerRenderer && skeletonRenderer){
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clearDepth(1.0);
@@ -110,10 +137,16 @@ export default function Home() {
         setCurrentFrame(globalTimeline.curr_time);
         
         let to_skin = actor.get_skel_at_time( globalTimeline.curr_time);
-        var myArray = new Float32Array(to_skin.flat());
-        actorRenderer.render(gl, myArray);
+        var A_matrix = new Float32Array(to_skin.flat());
+
+        actorRenderer.render(gl, A_matrix);
 
         floorRenderer.render(gl);
+
+        // angleControllerRenderer.render(gl, null);
+
+        gl.disable(gl.DEPTH_TEST);
+        skeletonRenderer.render(gl, globalTimeline.curr_time);
       }
 
       requestAnimationFrame(renderLoop);
@@ -121,8 +154,10 @@ export default function Home() {
     console.log("use effect");
     initializeActor();
     initializeFloor();
+    initializeAngleControlRenderer();
 
     addAllEvents(canvas, renderLoop, params);
+    
 
     requestAnimationFrame(renderLoop);
   }, []);
@@ -138,14 +173,24 @@ export default function Home() {
   // TODO: Add buttons for each joint, and sync approriately
   const popoverContent = () => {
     return (
-      <div className="bg-white text-gray-500 p-3 border border-gray-300 w-50 rounded shadow ml-4">
-        <h3 className="text-lg font-semibold mb-2">Frame {currentFrame}</h3>
+      <div className="bg-white text-gray-500 p-3 border border-gray-300 w-50 rounded shadow ml-4" id="angleContainer">
+        <h3 className="text-lg font-semibold mb-2">Joint Angle </h3>
 
         ~ code here for buttons ~
-        <div className="flex flex-row justify-between">
-          <div className="mr-3 ml-1">0</div>
-          <input type="range" className="w-full bg-white" min={0} max={totalFrames} value={currentFrame} onChange={(e) => setCurrentFrame(parseInt(e.target.value, 10) || 0)} />
-          <div className="ml-3 mr-1">{totalFrames}</div>
+        <div className="flex flex-row justify-between"  >
+          <div className="mr-3 ml-1">-180</div>
+          <input type="range" className="w-full bg-white" min={-180} max={180} onChange={(e) => {
+            const angle = parseInt(e.target.value, 10);
+            if (!isNaN(angle)) {
+                const angle_constrained = angle > 180 ? 180 : angle < -180 ? -180 : angle;
+                
+                const event = new CustomEvent('angleChange', { detail: angle_constrained });
+                document.dispatchEvent(event);
+              } else {
+               
+              }
+            }} />
+          <div className="ml-3 mr-1">{180}</div>
         </div>
       </div>
     )
@@ -176,23 +221,22 @@ export default function Home() {
           <form className="flex">
             <input
               type="number"
-              name="frameInput"
+              name="angleInput"
               className="bg-white text-gray-500 p-2 rounded w-16 "
-              value={currentFrame == 0 ? "" : currentFrame}
+              value={0}
               onBlur={(e) => {
-                const frame = parseInt((e.target as HTMLInputElement).value, 10);
-                if (isNaN(frame)) {
+                const angle = parseInt((e.target as HTMLInputElement).value, 10);
+                console.log(angle)
+                if (isNaN(angle)) {
                   (e.target as HTMLInputElement).value = "0";
                 }
               }}
-              onChange={(e) => {
-                const frame = parseInt((e.target as HTMLInputElement).value, 10);
-                if (!isNaN(frame)) {
-                  const frame_constrained = frame > totalFrames ? totalFrames : frame < 0 ? 0 : frame;
-                  setCurrentFrame(frame_constrained);
-                  
-                } else {
-                  setCurrentFrame(0);
+              onChange={async (e) => {
+                const angle = parseInt((e.target as HTMLInputElement).value, 10);
+                console.log(angle);
+                if (!isNaN(angle)) {
+                  const rotmat = angle_to_rotmat(0, angle * (Math.PI / 180)); // Convert angle to radians
+                  await actor.update_pose(currentFrame, rotmat, 0); // Assuming joint 0 for example
                 }
               }}
             />

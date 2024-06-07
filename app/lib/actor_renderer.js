@@ -96,9 +96,10 @@ export class ActorRenderer{
     }
 
     render(gl, A_matrix){
-        
+        // Data structure: SceneGraph tree (depth first traversal of tree, convert local->global transform, 
+        // draw when you find a drawable mesh geom)
         gl.useProgram(this.program);
-        this.load_buffers(gl, A_matrix);
+        this.load_buffers(gl, A_matrix); // TODO: dont copy these every time, only copy A_matrix
         setCameraMatrix(gl, this.program);
         this.drawTris( gl);
     }

@@ -119,7 +119,11 @@ export class SMPL{
 
         this.curr_As = tf.tensor(this.curr_As, [60, 24, 4, 4]);
 
-        return this.curr_As;
+        this.curr_joints = this.curr_joints.arraySync();
+        this.curr_joints[currFrame] = frame_joints[0];
+        this.curr_joints = tf.tensor(this.curr_joints, [60, 24, 3]);
+
+        return [this.curr_joints, this.curr_As];
         
     }
     

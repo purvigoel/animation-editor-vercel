@@ -1,16 +1,16 @@
 export class Skeleton {
-    constructor (filename, total_frames, mesh, A, T, from_rot){
+    constructor (curr_joints, total_frames, mesh, A, J, from_rot){
         this.np_arr = null; 
         this.joints = null;
         this.mesh = mesh.arraySync();
         this.A = A.arraySync();
-        this.T = T.arraySync();
+        this.J = J.arraySync();
         this.from_rot = from_rot;
         this.total_frames = total_frames;
         this.num_joints = -1;
         this.kinematic_tree = [ [0, 2], [0, 1], [0, 3], [2, 5], [5, 8], [8, 11], [1, 4], [4, 7], [7, 10], [3, 6], [6, 9], [9, 12], [12, 15],
     [9, 13], [13,16], [16, 18], [18,20], [9, 14], [14,17], [17,19],[19,21]];
-        this.filename = filename;
+        this.curr_joints = curr_joints;
     }
 
     get_joints(){
@@ -21,7 +21,7 @@ export class Skeleton {
         try {
             console.log("init skel", this.from_rot)
             
-            let promise_arr = this.filename.dataSync();
+            let promise_arr = this.curr_joints.dataSync();
             this.num_joints = 24;
             this.joints = await this.convert_np_to_skele({"data": promise_arr});
             console.log("init")
@@ -31,14 +31,15 @@ export class Skeleton {
         }
     }
 
-    async update_skel(filename){
-        this.filename = filename;
-        let promise_arr = this.filename.dataSync();
+    async update_skel(curr_joints){
+        this.curr_joints = curr_joints;
+        let promise_arr = this.curr_joints.dataSync();
         this.joints = await this.convert_np_to_skele({"data": promise_arr});
     }
 
-    async update_skel_skinning(A_matrix){
+    async update_skel_skinning(A_matrix, J){
         this.A = A_matrix.arraySync();
+        this.J = J.arraySync();
     }
 
     async convert_np_to_skele(promise_arr){
