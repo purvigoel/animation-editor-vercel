@@ -198,8 +198,8 @@ export function addAngleControl(body, params) {
                 const rotmat = angle_to_rotmat(config.axis, angle - previousAngle);
                 body.update_pose(params["currTime"], rotmat, config.joint);
                 params["draw_once"] = true;
-
                 previousValues[config.id] = slider.value;
+                slidersDiv.style.display = 'block'; // Automatically expand dropdown
             });
         });
 

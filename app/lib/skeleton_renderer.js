@@ -1,5 +1,6 @@
 import { getViewMatrix, getCameraMatrix, setCameraMatrix } from "./camera.js";
 import {m4} from "./m4.js";
+import { Clickable } from "./clickable.js";
 
 export class SkeletonRenderer {
     constructor(gl, total_frames, actor){
@@ -12,40 +13,25 @@ export class SkeletonRenderer {
         this.joint_pos = [];
         this.position_buffer = null;
         this.index_buffer = null;
+        this.actor = actor;
 
         this.sphere = this.createSphere(0.025, 16, 16);
+        this.is_clickable = true;
+        this.clickables = [];
         
         this.kinematic_tree = [ [0, 2], [0, 1], [0, 3], [2, 5], [5, 8], [8, 11], [1, 4], [4, 7], [7, 10], [3, 6], [6, 9], [9, 12], [12, 15],
         [9, 13], [13,16], [16, 18], [18,20], [9, 14], [14,17], [17,19],[19,21]];
-        this.joints_to_buffer(actor.skeleton.curr_joints.arraySync());
+        this.joints_to_buffer(actor.smpl.curr_joints.arraySync());
         this.initializeShaderProgram(gl);
         this.initializeBuffers(gl);
+    }
 
-        
+    getClickables() {
+        return this.clickables;
     }
 
     initializeShaderProgram(gl){
-        const vertexShaderSource = `
-        attribute vec2 a_position;
-        uniform mat4 u_matrix;
-
-        void main() {
-            gl_Position = u_matrix * vec4(a_position, 0.0, 1.0);
-        }
-        `;
-
-        const fragmentShaderSource = `
-            precision mediump float;
-
-            void main() {
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-            }
-        `;
-
-        const vertexShader = this.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-        const fragmentShader = this.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-        this.joint_program = this.createProgram(gl, vertexShader, fragmentShader);
-
+       
         const skel_vertexShaderSource = `
         attribute vec3 a_position;
         uniform mat4 u_matrix;
@@ -57,9 +43,13 @@ export class SkeletonRenderer {
 
         const skel_fragmentShaderSource = `
             precision mediump float;
-
+            uniform int is_hovered;
             void main() {
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                if(is_hovered == 1){
+                    gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+                } else {
+                    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                }
             }
         `;
 
@@ -113,6 +103,29 @@ export class SkeletonRenderer {
         this.joint_buffer = all_joints;
         this.joint_pos = joint_array;
     }
+
+    async update_joints(joint_array, curr_time){
+        let fr = curr_time;
+        let joints = [];
+        for(var i = 0; i < this.kinematic_tree.length; i++){
+            let start_joint = this.kinematic_tree[i][0];
+            let end_joint = this.kinematic_tree[i][1];
+
+            joints.push( joint_array[start_joint][0] );
+            joints.push( joint_array[start_joint][1] );
+            joints.push( joint_array[start_joint][2] );
+
+            joints.push( joint_array[end_joint][0] );
+            joints.push( joint_array[end_joint][1] );
+            joints.push( joint_array[end_joint][2] );
+        }
+        this.joint_buffer[fr] = joints;
+        this.joint_pos[fr] = joint_array;
+    }
+
+    async update_joints_all(){
+        this.joints_to_buffer(this.actor.smpl.curr_joints.arraySync());
+     }
 
     createSphere(radius, latitudeBands, longitudeBands) {
         const positions = [];
@@ -175,6 +188,9 @@ export class SkeletonRenderer {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.sphere.indices, gl.STATIC_DRAW);
 
+        for (let i = 0; i < 24; i ++) {
+            this.clickables.push(new Clickable([-100, -100, -100], 0.025, gl, i));
+        }
     }
 
     render(gl, time){
@@ -204,9 +220,21 @@ export class SkeletonRenderer {
             const modelMatrix = m4.translation(this.joint_pos[time][i][0], this.joint_pos[time][i][1], this.joint_pos[time][i][2]);
             const mvpMatrix = m4.multiply(camMat, modelMatrix);
             gl.uniformMatrix4fv(gl.getUniformLocation(this.skel_program, 'u_matrix'), false, mvpMatrix);
+            this.clickables[i].origin[0] = this.joint_pos[time][i][0];
+            this.clickables[i].origin[1] = this.joint_pos[time][i][1];
+            this.clickables[i].origin[2] =  this.joint_pos[time][i][2];
             
-            
+            if(this.clickables[i].isHovered || this.clickables[i].isClicked){
+                gl.uniform1i(gl.getUniformLocation(this.skel_program, 'is_hovered'), 1);
+            } else {
+                gl.uniform1i(gl.getUniformLocation(this.skel_program, 'is_hovered'), 0);
+            }
             gl.drawElements(gl.TRIANGLES, this.sphere.indices.length,  gl.UNSIGNED_SHORT, 0);
+            
+        }
+
+        for(let i = 0; i < this.joint_pos[time].length; i++){
+            this.clickables[i].angleController.render(gl, this.clickables[i].origin);
         }
 
     }

@@ -2,38 +2,43 @@ import * as tf from '@tensorflow/tfjs';
 
 export async function lbs(betas, pose, v_template, shapedirs, posedirs, J_regressor, parents, lbs_weights, pose2rot = true) {
     tf.setBackend("cpu");
-    const batch_size = Math.max(betas.shape[0], pose.shape[0]);
     
+    const batch_size = Math.max(betas.shape[0], pose.shape[0]);
+    console.log("start lbs");
     betas = betas.tile([60, 1]);
 
     // Add shape contribution
     let v_shaped = v_template.add(blendShapes(betas, shapedirs));
-
+    console.log("finish blendshapes");
     // // Get the joints
     let J = vertices2joints(J_regressor, v_shaped);
-    
+    console.log("finish v2j");
     const ident = tf.eye(3);
     let rot_mats, pose_feature, pose_offsets;
         
     pose_feature = pose.slice([0, 0, 1, 0, 0], [-1, -1, -1, -1, -1]).sub(ident);
     rot_mats = pose.reshape([batch_size, -1, 3, 3]);
 
-    //pose_offsets = tf.matMul(pose_feature.reshape([ -1, 207]), posedirs).reshape([batch_size, -1, 6890, 3]);
+    const [J_transformed, A] = await batchRigidTransform(rot_mats, J, parents);
+    console.log("finish lbs");
+    return [J_transformed, v_shaped, A, J];
+}
 
-    //let v_posed = pose_offsets.add(v_shaped);
+export async function lbs_update(betas, pose, J_regressor, parents, v_shaped, skinned_J) {
+    tf.setBackend("cpu");
+    const batch_size = Math.max(betas.shape[0], pose.shape[0]);
+    
+    // // Get the joints
+    //let J = vertices2joints(J_regressor, v_shaped);
+    let J = skinned_J;
+    const ident = tf.eye(3);
+    let rot_mats, pose_feature;
+        
+    pose_feature = pose.slice([0, 0, 1, 0, 0], [-1, -1, -1, -1, -1]).sub(ident);
+    rot_mats = pose.reshape([batch_size, -1, 3, 3]);
 
     const [J_transformed, A] = await batchRigidTransform(rot_mats, J, parents);
-
-    
-    // const W = lbs_weights.expandDims(0).tile([batch_size, 1, 1]);   
-    // const num_joints = J_regressor.shape[0];
-    // const T = tf.matMul(W, A.reshape([-1, num_joints, 16])).reshape([-1, 6890, 4, 4]);
-
-    // const homogen_coord = tf.ones([v_posed.shape[1], 6890, 1]);
-    // const v_posed_homo = v_posed.squeeze(0).concat(homogen_coord, 2);
-    // const v_homo = tf.matMul(T, v_posed_homo.expandDims(-1));
-    // const verts = v_homo.slice([0, 0, 0, 0], [-1, -1, 3, 1]).squeeze([3]);
-
+   
     return [J_transformed, v_shaped, A, A];
 }
 
@@ -129,7 +134,6 @@ async function batchRigidTransform(rot_mats, joints, parents) {
         rel_joints.reshape([-1, 3, 1])
     ).reshape([-1, num_joints, 4, 4]);
     
-
     const transform_chain = [transforms_mat.slice([0, 0], [-1, 1]).reshape([-1, 4, 4])];
     for (let i = 1; i < num_joints; i++) {
         const parent_index = parentsData[i];
@@ -153,6 +157,6 @@ async function batchRigidTransform(rot_mats, joints, parents) {
     const rel_transforms = transforms.sub(padded_joints);
     
     const posed_joints = transforms.slice([0, 0, 0, 3], [-1, -1, 3, 1]).squeeze([3]);
-    
+
     return [posed_joints, rel_transforms];
 }

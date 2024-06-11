@@ -1,4 +1,5 @@
 import {m4} from "./m4.js";
+import { vec3 } from 'gl-matrix';
 
 export let camera = {
     theta: 0,
@@ -62,7 +63,7 @@ export function getCameraMatrix(gl){
 
 }
 
-export function getViewMatrix(gl){
+export function getViewProjectionMatrix(gl){
     // Define a simple projection matrix
     const fieldOfViewRadians = Math.PI * 0.5;
     const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
@@ -83,6 +84,7 @@ export function getViewMatrix(gl){
     const viewMatrix = m4.inverse(cameraMatrix);
     
     //const viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
-    return viewMatrix;
+    return [viewMatrix, projectionMatrix, vec3.fromValues(x, y, z)];
 
+    
 }

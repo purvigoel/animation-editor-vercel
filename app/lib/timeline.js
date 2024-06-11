@@ -29,7 +29,7 @@ export class Timeline{
         //     document.addEventListener('mousemove', onMouseMove);
         //     document.addEventListener('mouseup', onMouseUp);
         // });
-
+        
     }
 
     add_body(body){
@@ -82,5 +82,7 @@ export class Timeline{
         this.params["draw_once"] = true;
         requestAnimationFrame(this.render_function);
     }
+
+    
 }
 

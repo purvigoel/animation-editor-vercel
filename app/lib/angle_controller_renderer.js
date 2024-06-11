@@ -98,9 +98,7 @@ export class AngleControllerRenderer{
           ]);
         gl.bufferData(gl.ARRAY_BUFFER, arrowVertices, gl.STATIC_DRAW);
         this.arrowVertices = arrowVertices;
-        // Create buffers for the rotation rings
-        // const ringBuffer = gl.createBuffer();
-        // gl.bindBuffer(gl.ARRAY_BUFFER, ringBuffer);
+        
         const createRingVertices = (radius, segments, plane) => {
             const vertices = [];
             for (let i = 0; i <= segments; i++) {
@@ -144,7 +142,7 @@ export class AngleControllerRenderer{
             };
     }
 
-    render(gl, joint) {
+    render(gl, joint_location) {
         const { arrowBuffer, ringBufferXY, ringBufferYZ, ringBufferXZ } = this.controller;
         let cameraMatrix = getCameraMatrix(gl);
 
@@ -164,10 +162,11 @@ export class AngleControllerRenderer{
         for (let i = 0; i < 3; i++) {
             let modelMatrix = m4.create();
             let scaleMatrix = m4.create();
-            scaleMatrix = m4.scale(scaleMatrix, scaleMatrix, [0.5, 0.5, 0.5]);
-            modelMatrix = m4.translate(scaleMatrix, scaleMatrix, [0, 1, 0]);
 
-            const mvpMatrix = m4.multiply(cameraMatrix, modelMatrix);
+            modelMatrix = m4.translate(scaleMatrix, scaleMatrix, joint_location);
+            scaleMatrix = m4.scale(scaleMatrix, modelMatrix, [0.5, 0.5, 0.5]);
+
+            const mvpMatrix = m4.multiply(cameraMatrix, scaleMatrix);
             const mvpMatrixLocation = gl.getUniformLocation(this.arrowProgram, 'u_mvpMatrix');
             gl.uniformMatrix4fv(mvpMatrixLocation, false, mvpMatrix);
 
@@ -182,10 +181,11 @@ export class AngleControllerRenderer{
       
         let modelMatrix = m4.create();
         let scaleMatrix = m4.create();
-        scaleMatrix = m4.scale(scaleMatrix, scaleMatrix, [0.25, 0.25, 0.25]);
-        modelMatrix = m4.translate(scaleMatrix, scaleMatrix, [0, 2, 0]);
 
-        let ringMvpMatrix = m4.multiply(cameraMatrix, modelMatrix);
+        modelMatrix = m4.translate(scaleMatrix, scaleMatrix, joint_location);
+        scaleMatrix = m4.scale(scaleMatrix, modelMatrix, [0.25, 0.25, 0.25]);
+
+        let ringMvpMatrix = m4.multiply(cameraMatrix, scaleMatrix);
 
         const ringMvpMatrixLocation = gl.getUniformLocation(this.ringProgram, 'u_mvpMatrix');
         gl.uniformMatrix4fv(ringMvpMatrixLocation, false, ringMvpMatrix);
@@ -204,6 +204,7 @@ export class AngleControllerRenderer{
         gl.bindBuffer(gl.ARRAY_BUFFER, ringBufferXZ);
         gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
         gl.drawArrays(gl.LINE_LOOP, 0, this.ringVerticesXZ.length / 3);
+        
       }
 
 }
