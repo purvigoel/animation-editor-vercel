@@ -38,7 +38,7 @@ export class InterpolationWidget{
 
         if(force_refresh){
             await actor.update_all_poses();
-            actor.skeleton_renderer.update_joints_all();
+            actor.skeletonRenderer.update_joints_all();
         }
         
     }
@@ -50,7 +50,7 @@ export class InterpolationWidget{
             await this.interpolate_between_keyframes(actor, this.params.keyframe_inds[i], this.params.keyframe_inds[i+1], false);
         }
         await actor.update_all_poses();
-        actor.skeleton_renderer.update_joints_all();
+        actor.skeletonRenderer.update_joints_all();
     }
 }
 

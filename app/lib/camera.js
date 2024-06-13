@@ -17,7 +17,7 @@ export function setCameraMatrix(gl, program) {
     const fieldOfViewRadians = Math.PI * 0.5;
     const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
     const zNear = 0.1;
-    const zFar = 100;
+    const zFar = 1000;
     const projectionMatrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
     
     // Calculate the camera position in Cartesian coordinates
@@ -53,6 +53,7 @@ export function getCameraMatrix(gl){
     const cameraPosition = [x, y, z];
     const up = [0, 1, 0];
     const target = camera.lookAt;
+    
     const cameraMatrix = m4.lookAt(cameraPosition, target, up);
     
     // Make a view matrix from the camera matrix.
@@ -88,3 +89,22 @@ export function getViewProjectionMatrix(gl){
 
     
 }
+
+function cartesianToSpherical(x, y, z) {
+    const radius = Math.sqrt(x * x + y * y + z * z);
+    const theta = Math.atan2(y, x);
+    const phi = Math.acos(z / radius);
+    return { radius, theta, phi };
+}
+
+export function adjustCamera(boundingBox){
+    const center = boundingBox.getCenter();
+    const distance = vec3.distance(boundingBox.min, boundingBox.max);
+    const position = vec3.fromValues(center[0], center[1], center[2] + distance);
+    const spherical = cartesianToSpherical(position[0], position[1], position[2]);
+    camera.radius = spherical.radius;
+    camera.theta = spherical.theta;
+    camera.phi = spherical.phi;
+    camera.lookAt = center;
+}
+

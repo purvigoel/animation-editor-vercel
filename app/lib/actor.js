@@ -1,8 +1,10 @@
 import {SMPL} from "./SMPL.js";
 import {Skeleton} from "./skeleton.js";
+import {ActorRenderer} from "./actor_renderer.js";
+import {SkeletonRenderer} from "./skeleton_renderer.js";
 
 export class Actor {
-    constructor(tot_frames){
+    constructor(tot_frames, gl){
         this.smpl = null;
         this.skeleton = null;
         this.template_positions = null;
@@ -11,7 +13,10 @@ export class Actor {
         this.bone_weights = null;
         this.bone_indices = null;
         this.tot_frames = tot_frames;
-        this.skeleton_renderer = null;
+        this.gl = gl;
+        this.actorRenderer = null; //new ActorRenderer(gl, this);
+        this.skeletonRenderer = null; //new SkeletonRenderer(gl, tot_frames, this);
+       
     }
 
     async init(){
@@ -32,12 +37,10 @@ export class Actor {
         this.bone_weights = null;
         this.bone_indices = null;
         [this.bone_indices, this.bone_weights] = this.get_bone_indices();
-    }
 
-    // async update_pose(frame, rotmat, joint){
-    //     let joints = await this.smpl.update_pose_skinning(frame, rotmat, joint);
-    //     this.skeleton.update_skel_skinning(joints);
-    // }
+        this.actorRenderer = new ActorRenderer(this.gl, this);
+        this.skeletonRenderer = new SkeletonRenderer(this.gl, this.tot_frames, this);
+    }
 
     calculateNormals(vertices, indices) {
         const normals = new Float32Array(vertices.length);
@@ -127,6 +130,9 @@ export class Actor {
     async update_pose(frame, rotmat, joint){
         let [joints, A] = await this.smpl.update_pose_skinning(frame, rotmat, joint);
         this.skeleton.update_skel_skinning(A, joints);
+        var J_matrix = this.get_joints_at_time(frame);
+        await this.skeletonRenderer.update_joints(J_matrix, frame);
+        
     }
 }
 

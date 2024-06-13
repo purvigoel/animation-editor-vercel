@@ -17,7 +17,8 @@
     "npyjs": "^0.6.0",
     "react": "^18",
     "react-dom": "^18",
-    "react-tiny-popover": "^8.0.4"
+    "react-tiny-popover": "^8.0.4",
+    "webgl-utils.js": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^20",

@@ -379,5 +379,78 @@ export const m4 = {
         out[14] = a[14];
         out[15] = a[15];
         return out;
-    }
+    },
+    identity: function() {
+        return [1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1];
+    },
+    compose: function(position, rotation, scale, dst) {
+        dst = dst || new Float32Array(16);
+        const t = m4.translation(position[0], position[1], position[2]);
+        const r = m4.quaternion(rotation);
+        const s = m4.scaling(scale[0], scale[1], scale[2]);
+        dst = m4.multiply(t, r, dst);
+        dst = m4.multiply(dst, s, dst);
+        return dst;
+    },
+    quaternion: function(q, dst) {
+        dst = dst || new Float32Array(16);
+      
+        const x = q[0], y = q[1], z = q[2], w = q[3];
+        const x2 = x + x;
+        const y2 = y + y;
+        const z2 = z + z;
+      
+        const xx = x * x2;
+        const xy = x * y2;
+        const xz = x * z2;
+        const yy = y * y2;
+        const yz = y * z2;
+        const zz = z * z2;
+        const wx = w * x2;
+        const wy = w * y2;
+        const wz = w * z2;
+      
+        dst[0] = 1 - (yy + zz);
+        dst[1] = xy + wz;
+        dst[2] = xz - wy;
+        dst[3] = 0;
+      
+        dst[4] = xy - wz;
+        dst[5] = 1 - (xx + zz);
+        dst[6] = yz + wx;
+        dst[7] = 0;
+      
+        dst[8] = xz + wy;
+        dst[9] = yz - wx;
+        dst[10] = 1 - (xx + yy);
+        dst[11] = 0;
+      
+        dst[12] = 0;
+        dst[13] = 0;
+        dst[14] = 0;
+        dst[15] = 1;
+      
+        return dst;
+    },
+    scaling: function(sx, sy, sz, dst) {
+        dst = dst || new Float32Array(16);
+      
+        dst[0] = sx; dst[1] = 0;  dst[2] = 0;  dst[3] = 0;
+        dst[4] = 0;  dst[5] = sy; dst[6] = 0;  dst[7] = 0;
+        dst[8] = 0;  dst[9] = 0;  dst[10] = sz; dst[11] = 0;
+        dst[12] = 0; dst[13] = 0; dst[14] = 0; dst[15] = 1;
+      
+        return dst;
+    },
+    copy: function(src, dst) {
+        dst = dst || new Float32Array(16);
+        for (let i = 0; i < 16; ++i) {
+          dst[i] = src[i];
+        }
+        return dst;
+      }
+
 };

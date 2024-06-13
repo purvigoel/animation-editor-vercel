@@ -18,6 +18,11 @@ import {addAngleControl} from "./lib/angle_controller.js";
 import {KeyframeCreationWidget} from "./lib/keyframe_creation_widget.js";
 import {KeyframeWidget} from "./lib/keyframe_widget.js";
 import {InterpolationWidget} from "./lib/interpolation_widget.js";
+import {loadGLTF, gltf_fragmentShaderSource, gltf_vertexShaderSource, renderScene, loadGltf2} from "./lib/scenegraph/gltf_reader.js";
+import {m4} from "./lib/m4.js";
+import {camera, getViewProjectionMatrix, adjustCamera} from "./lib/camera.js";
+import * as webglUtils from 'webgl-utils.js';
+
 
 export default function Home() {
 
@@ -53,7 +58,7 @@ export default function Home() {
   let globalTimeline = new Timeline(params, tot_frames);
   let keyframeCreationWidget = new KeyframeCreationWidget(params, tot_frames);
   let interpolationWidget = new InterpolationWidget(params);
-
+  let draw_gltf = false;
 
   let actor: Actor | null = null;
 
@@ -61,14 +66,16 @@ export default function Home() {
     if (isInitializedRef.current) return; // Prevent re-initialization
     isInitializedRef.current = true;
 
+   
+    
+    let gltf = null;
     let floorRenderer: FloorRenderer | null = null;
-    let actorRenderer: ActorRenderer | null = null;
-    let skeletonRenderer: SkeletonRenderer | null = null;
     let clickables: any[] = [];
 
     const canvas = document.getElementById("mainCanvas") as HTMLCanvasElement;
     const gl = canvas.getContext('webgl');
     const context = canvas.getContext("2d");
+
     
     const resizeCanvas = () => {
       if (canvas) {
@@ -82,14 +89,12 @@ export default function Home() {
 
     const initializeActor = async () => {
       console.log("initializing actor");
-      actor = new Actor(tot_frames);
+      actor = new Actor(tot_frames, gl);
       await actor.init();
-      actorRenderer = new ActorRenderer(gl, actor);
-      skeletonRenderer = new SkeletonRenderer(gl, tot_frames, actor);
-      actor.skeleton_renderer = skeletonRenderer;
-
-      clickables.push(...skeletonRenderer.getClickables());
-      params["clickables"] = clickables;
+      if(actor.skeletonRenderer){
+        clickables.push(... actor.skeletonRenderer.getClickables());
+        params["clickables"] = clickables;
+      }
 
     };
 
@@ -115,7 +120,7 @@ export default function Home() {
     document.addEventListener('interpolateChange', handleInterpolate);
     
     const handleAngleChange = async (angle: number, coord: number) => {
-      if (actor && skeletonRenderer && params["clicked"] != null) {
+      if (actor && actor.skeletonRenderer && params["clicked"] != null) {
         let joint_id = params["clicked"].id as number;
         if (!(joint_id in params.previousValues)) {
           params.previousValues[joint_id] = [0, 0, 0];
@@ -126,15 +131,10 @@ export default function Home() {
         }
         
         const previousAngle = parseFloat(params.previousValues[joint_id][coord].toString()) * Math.PI / 180;
-        
-        
         params.previousValues[joint_id][coord] = angle;
         const rotmat = angle_to_rotmat(coord, angle * (Math.PI / 180) - previousAngle);
         
         actor.update_pose(globalTimeline.curr_time, rotmat, params["clicked"].id);
-        var J_matrix = actor.get_joints_at_time(globalTimeline.curr_time);
-        await skeletonRenderer.update_joints(J_matrix, globalTimeline.curr_time);
-        
 
         params["draw_once"] = true;
       }
@@ -144,13 +144,34 @@ export default function Home() {
       const { angle, coord } = (e as CustomEvent<{ angle: number, coord: number }>).detail;
       handleAngleChange(angle, coord);
     });
-
-    
   
     keyframeCreationWidget.timeline_div = document.getElementById('timeline'); // Ensure this line is executed after the DOM is loaded
     keyframeCreationWidget.createKeyframe_no_event(0);
     keyframeCreationWidget.createKeyframe_no_event(tot_frames - 1);
     
+    let camera_view = null;
+    let camera_projection = null;
+    let meshProgramInfo = null;
+    const sharedUniforms = {
+      u_lightDirection: m4.normalize([-1, 3, 5]),
+    };
+    const loadGLFT = async() => {
+      camera.theta = 1;
+      camera.lookAt = [0, 0, -2];
+      camera.radius = 10;
+      [camera_view, camera_projection, ] = getViewProjectionMatrix(gl)
+      meshProgramInfo = webglUtils.createProgramInfo(gl, [gltf_vertexShaderSource, gltf_fragmentShaderSource]);
+      console.log(meshProgramInfo)
+      //gltf = await loadGLTF('https://webglfundamentals.org/webgl/resources/models/killer_whale/whale.CYCLES.gltf', gl);
+      gltf = await loadGLTF('/data/ABeautifulGame.gltf', gl);
+      adjustCamera(gltf.boundingBox)
+    }
+    if(draw_gltf){
+      loadGLFT();
+    }
+    
+    
+
     let lastFrameTime = 0;
     let frameDuration = 1000 / 40;
 
@@ -174,7 +195,7 @@ export default function Home() {
 
       params["draw_once"] = false;
 
-      if(gl && actor && actorRenderer && floorRenderer && skeletonRenderer){
+      if(!draw_gltf && gl && actor && actor.actorRenderer && floorRenderer && actor.skeletonRenderer){
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clearDepth(1.0);
@@ -187,25 +208,39 @@ export default function Home() {
         let to_skin = actor.get_skel_at_time( globalTimeline.curr_time);
         var A_matrix = new Float32Array(to_skin.flat());
         
-        actorRenderer.render(gl, A_matrix);
+        actor.actorRenderer.render(gl, A_matrix);
         floorRenderer.render(gl);
 
-        //angleControllerRenderer.render(gl, null);
-
-
         gl.disable(gl.DEPTH_TEST);
-        skeletonRenderer.render(gl, globalTimeline.curr_time);
+        actor.skeletonRenderer.render(gl, globalTimeline.curr_time);
+      }
+
+      if(draw_gltf && gl && gltf){
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        gl.clearDepth(1.0);
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LEQUAL);
+        
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        setCurrentFrame(globalTimeline.curr_time);
+
+        [camera_view, camera_projection, ] = getViewProjectionMatrix(gl)
+        renderScene(gltf, camera_projection, camera_view, sharedUniforms, meshProgramInfo);
       }
 
       requestAnimationFrame(renderLoop);
     }
-    console.log("use effect");
-    initializeActor();
-    initializeFloor();
-    //initializeAngleControlRenderer();
+
+    if(!draw_gltf){
+      initializeActor();
+      initializeFloor();
+    }
     addAllEvents(gl, canvas, renderLoop, params);
     addMouseEvents(canvas, clickables, renderLoop, gl, params);
+    
     requestAnimationFrame(renderLoop);
+
   }, []);
 
   const handleDownload = () => {
