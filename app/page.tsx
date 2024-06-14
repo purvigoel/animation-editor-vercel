@@ -32,6 +32,20 @@ export default function Home() {
   const [totalFrames, setTotalFrames] = useState(60);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
+  interface GLTF {
+    scenes: any[];
+    nodes: any[];
+    meshes: any[];
+    accessors: any[];
+    bufferViews: any[];
+    buffers: any[];
+    materials: any[];
+    animations?: any[];
+    skins?: any[];
+    cameras?: any[];
+    boundingBox: any;
+}
+
   interface Params {
     pause: boolean;
     draw_once: boolean;
@@ -68,7 +82,7 @@ export default function Home() {
 
    
     
-    let gltf = null;
+    let gltf : GLTF | null = null;
     let floorRenderer: FloorRenderer | null = null;
     let clickables: any[] = [];
 
