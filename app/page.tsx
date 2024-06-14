@@ -21,7 +21,7 @@ import {InterpolationWidget} from "./lib/interpolation_widget.js";
 import {loadGLTF, gltf_fragmentShaderSource, gltf_vertexShaderSource, renderScene} from "./lib/scenegraph/gltf_reader.js";
 import {m4} from "./lib/m4.js";
 import {camera, getViewProjectionMatrix, adjustCamera} from "./lib/camera.js";
-import * as webglUtils from 'webgl-utils.js';
+//import * as webglUtils from 'webgl-utils.js';
 
 
 export default function Home() {
