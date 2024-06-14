@@ -5,7 +5,9 @@ export class KeyframeCreationWidget {
     this.params = params;
     this.tot_frames = tot_frames;
     this.keyframes = [];
-    this.timeline_div = document.getElementById('timeline');
+    
+    this.timeline_div = null; //document.getElementById('timeline');
+    
   }
 
   createKeyframe(time) {
