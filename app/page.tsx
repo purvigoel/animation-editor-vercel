@@ -175,11 +175,10 @@ export default function Home() {
       camera.lookAt = [0, 0, -2];
       camera.radius = 10;
       [camera_view, camera_projection, ] = getViewProjectionMatrix(gl)
-      meshProgramInfo = webglUtils.createProgramInfo(gl, [gltf_vertexShaderSource, gltf_fragmentShaderSource]);
-      console.log(meshProgramInfo)
-      //gltf = await loadGLTF('https://webglfundamentals.org/webgl/resources/models/killer_whale/whale.CYCLES.gltf', gl);
-      gltf = await loadGLTF('/data/ABeautifulGame.gltf', gl);
-      adjustCamera(gltf.boundingBox)
+      //meshProgramInfo = webglUtils.createProgramInfo(gl, [gltf_vertexShaderSource, gltf_fragmentShaderSource]);
+      //console.log(meshProgramInfo)
+      //gltf = await loadGLTF('/data/ABeautifulGame.gltf', gl);
+      //adjustCamera(gltf.boundingBox)
     }
     if(draw_gltf){
       loadGLFT();
@@ -241,7 +240,7 @@ export default function Home() {
         setCurrentFrame(globalTimeline.curr_time);
 
         [camera_view, camera_projection, ] = getViewProjectionMatrix(gl)
-        renderScene(gltf, camera_projection, camera_view, sharedUniforms, meshProgramInfo);
+        //renderScene(gltf, camera_projection, camera_view, sharedUniforms, meshProgramInfo);
       }
 
       requestAnimationFrame(renderLoop);
