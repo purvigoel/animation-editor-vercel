@@ -18,7 +18,7 @@ import {addAngleControl} from "./lib/angle_controller.js";
 import {KeyframeCreationWidget} from "./lib/keyframe_creation_widget.js";
 import {KeyframeWidget} from "./lib/keyframe_widget.js";
 import {InterpolationWidget} from "./lib/interpolation_widget.js";
-import {loadGLTF, gltf_fragmentShaderSource, gltf_vertexShaderSource, renderScene, loadGltf2} from "./lib/scenegraph/gltf_reader.js";
+import {loadGLTF, gltf_fragmentShaderSource, gltf_vertexShaderSource, renderScene} from "./lib/scenegraph/gltf_reader.js";
 import {m4} from "./lib/m4.js";
 import {camera, getViewProjectionMatrix, adjustCamera} from "./lib/camera.js";
 import * as webglUtils from 'webgl-utils.js';
@@ -73,7 +73,8 @@ export default function Home() {
     let clickables: any[] = [];
 
     const canvas = document.getElementById("mainCanvas") as HTMLCanvasElement;
-    const gl = canvas.getContext('webgl');
+    
+    const gl = canvas.getContext('webgl2');
     const context = canvas.getContext("2d");
 
     

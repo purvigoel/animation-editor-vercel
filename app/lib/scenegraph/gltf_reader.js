@@ -149,8 +149,6 @@ class TRS {
         });
         webglUtils.setUniforms(meshProgramInfo, primitive.material.uniforms); 
         webglUtils.setUniforms(meshProgramInfo, sharedUniforms);
-        
-        //webglUtils.drawBufferInfo(this.gl, primitive.bufferInfo, null, 0);
         this.drawBufferInfo(this.gl, primitive.bufferInfo, this.gl.TRIANGLES, primitive.bufferInfo.numElements, primitive.bufferInfo.offset);
         counter += 1;
       }
@@ -160,10 +158,15 @@ class TRS {
     drawBufferInfo(gl, bufferInfo, primitiveType, count, offset) {
         const indices = bufferInfo.indices;
         primitiveType = primitiveType === undefined ? gl.TRIANGLES : primitiveType;
+        //primitiveType = this.gl.LINES;
         const numElements = count === undefined ? bufferInfo.numElements : count;
         offset = offset === undefined ? 0 : offset;
         if (indices) {
-          gl.drawElements(primitiveType, numElements, gl.UNSIGNED_SHORT, offset);
+            if(bufferInfo.elementType == 5123){
+                gl.drawElements(primitiveType, numElements, gl.UNSIGNED_SHORT, offset);
+            } else {
+                gl.drawElements(primitiveType, numElements, gl.UNSIGNED_INT, offset);
+            }
         } else {
           gl.drawArrays(primitiveType, offset, numElements);
         }
@@ -257,7 +260,7 @@ class TRS {
     const accessor = gltf.accessors[accessorIndex];
     
     const bufferView = gltf.bufferViews[accessor.bufferView];
-    // const out_typed = getAccessorTypedArrayAndStride(gl, gltf, accessorIndex);
+    //const out_typed = getAccessorTypedArrayAndStride(gl, gltf, accessorIndex);
     // const array_typed = out_typed.array;
 
     
@@ -267,7 +270,7 @@ class TRS {
       
       if(is_indices){
         target = bufferView.target || gl.ELEMENT_ARRAY_BUFFER;
-       }
+      }
 
       const arrayBuffer = gltf.buffers[bufferView.buffer];
    
@@ -380,8 +383,6 @@ class TRS {
     for(const scene of gltf.scenes){
       gltf.boundingBox.update(scene.root.boundingBox.min, scene.root.boundingBox.max);
     }
-
-    console.log(gltf.boundingBox)
 
     return gltf;
   }
