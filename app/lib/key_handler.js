@@ -30,6 +30,10 @@ function handleKeyDown(gl, canvas, event, render, params) {
     if (event.code === 'Space') {
         params["pause"] = !params["pause"];
         addMouseEvents(canvas, params["clickables"], render, gl, params);
+        
+        for(let i = 0; i < params.keyframe_widgets.length; i++){
+            params.keyframe_widgets[i].deselect();
+        }
     }
 }
 

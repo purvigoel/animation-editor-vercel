@@ -23,9 +23,9 @@ export class Actor {
         let smpl = new SMPL();
         await smpl.init_smpl();
 
-        let [joints, mesh, A, T] = await smpl.forward();
+        let [joints, mesh, A, trans] = await smpl.forward();
 
-        let skel = new Skeleton(joints, this.tot_frames, mesh, A, joints, true);
+        let skel = new Skeleton(joints, this.tot_frames, mesh, A, joints, trans, true);
         await skel.init_skel();
 
         this.smpl = smpl;
@@ -105,7 +105,7 @@ export class Actor {
     }
 
     get_skel_at_time(time){
-        return this.skeleton.A[time].flat();
+        return [this.skeleton.A[time].flat(), this.skeleton.translation[0][time].flat()];
     }
 
     get_joints_at_time(time){
@@ -113,11 +113,12 @@ export class Actor {
     }
 
     get_keyframe_at_time(time){
-        return this.smpl.full_pose[0][time];
+        return [this.smpl.full_pose[0][time], this.skeleton.translation[0][time].flat()];
     }
 
-    set_keyframe_at_time(time, keyframe){
+    set_keyframe_at_time(time, keyframe, trans){
         this.smpl.full_pose[0][time] = keyframe.arraySync();
+        this.smpl.global_translation[0][time] = trans.arraySync();
     }
 
     async update_all_poses(){
@@ -133,6 +134,15 @@ export class Actor {
         var J_matrix = this.get_joints_at_time(frame);
         await this.skeletonRenderer.update_joints(J_matrix, frame);
         
+    }
+
+    async update_trans(frame, translate_by, coord){
+        let [joints, A, translation] = await this.smpl.update_translation(frame, translate_by, coord);
+        
+        this.skeleton.update_translation(translation);
+        this.skeleton.update_skel_skinning(A, joints);
+        var J_matrix = this.get_joints_at_time(frame);
+        await this.skeletonRenderer.update_joints(J_matrix, frame);
     }
 }
 

@@ -62,9 +62,11 @@ export class ActorRenderer{
        
         this.lineIndexBuffer = gl.createBuffer();
         this.uniformArrayLocation = gl.getUniformLocation(this.program, 'u_uniformArray');
+
+        this.translationArrayLocation = gl.getUniformLocation(this.program, 'u_transArray');
     }
 
-    load_buffers(gl, A_matrix){
+    load_buffers(gl, A_matrix, trans_matrix){
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
         gl.enableVertexAttribArray(this.positionLocation);
         gl.vertexAttribPointer(this.positionLocation, 3, gl.FLOAT, false, 0, 0);
@@ -86,6 +88,7 @@ export class ActorRenderer{
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.normals), gl.STATIC_DRAW);
 
         gl.uniform1fv(this.uniformArrayLocation, A_matrix);
+        gl.uniform1fv(this.translationArrayLocation, trans_matrix);
     }
     
     drawTris(gl){
@@ -95,11 +98,11 @@ export class ActorRenderer{
         gl.drawElements(gl.TRIANGLES, this.faceInds.length, gl.UNSIGNED_SHORT, 0);
     }
 
-    render(gl, A_matrix){
+    render(gl, A_matrix, trans_matrix){
         // Data structure: SceneGraph tree (depth first traversal of tree, convert local->global transform, 
         // draw when you find a drawable mesh geom)
         gl.useProgram(this.program);
-        this.load_buffers(gl, A_matrix); // TODO: dont copy these every time, only copy A_matrix
+        this.load_buffers(gl, A_matrix, trans_matrix); // TODO: dont copy these every time, only copy A_matrix
         setCameraMatrix(gl, this.program);
         this.drawTris( gl);
     }

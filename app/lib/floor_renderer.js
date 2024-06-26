@@ -74,10 +74,10 @@ export class FloorRenderer {
 
     initialize_buffers(gl) {
         const positions = new Float32Array([
-            -100, -1.1, -100,
-             100, -1.1, -100,
-            -100, -1.1,  100,
-             100, -1.1,  100,
+            -100, -1.15, -100,
+             100, -1.15, -100,
+            -100, -1.15,  100,
+             100, -1.15,  100,
         ]);
 
         const normals = new Float32Array([

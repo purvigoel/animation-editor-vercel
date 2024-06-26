@@ -1,10 +1,11 @@
 export class Skeleton {
-    constructor (curr_joints, total_frames, mesh, A, J, from_rot){
+    constructor (curr_joints, total_frames, mesh, A, J, translation, from_rot){
         this.np_arr = null; 
         this.joints = null;
         this.mesh = mesh.arraySync();
         this.A = A.arraySync();
         this.J = J.arraySync();
+        this.translation = translation; //.arraySync();
         this.from_rot = from_rot;
         this.total_frames = total_frames;
         this.num_joints = -1;
@@ -40,6 +41,10 @@ export class Skeleton {
     async update_skel_skinning(A_matrix, J){
         this.A = A_matrix.arraySync();
         this.J = J.arraySync();
+    }
+
+    async update_translation(translation){
+        this.translation = translation; //.arraySync();
     }
 
     async convert_np_to_skele(promise_arr){

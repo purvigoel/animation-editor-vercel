@@ -1,5 +1,5 @@
 import * as tf from "@tensorflow/tfjs";
-import { quat, mat3 } from 'gl-matrix';
+import { quat, mat3, vec3 } from 'gl-matrix';
 
 
 export class InterpolationWidget{
@@ -8,9 +8,12 @@ export class InterpolationWidget{
     }
 
     async interpolate_between_keyframes(actor, keyframe_lo_time, keyframe_hi_time, force_refresh){
-        let keyframe_lo = actor.get_keyframe_at_time(keyframe_lo_time);
-        let keyframe_hi = actor.get_keyframe_at_time(keyframe_hi_time);
+        let [keyframe_lo, keyframe_lo_trans] = actor.get_keyframe_at_time(keyframe_lo_time);
+        let [keyframe_hi, keyframe_hi_trans] = actor.get_keyframe_at_time(keyframe_hi_time);
         
+        keyframe_lo_trans = vec3.fromValues(keyframe_lo_trans[0], keyframe_lo_trans[1], keyframe_lo_trans[2]);
+        keyframe_hi_trans = vec3.fromValues(keyframe_hi_trans[0], keyframe_hi_trans[1], keyframe_hi_trans[2]);
+
         for (let i = keyframe_lo_time; i < keyframe_hi_time; i++) {
             let alpha = (i - keyframe_lo_time) / (keyframe_hi_time - keyframe_lo_time);
             let interpolated_val = [];
@@ -32,8 +35,16 @@ export class InterpolationWidget{
                 interpolated_val.push(tf.tensor(  mat3.transpose([], q_interpolated_mat), [3, 3]));
             }
     
-            interpolated_val = tf.stack(interpolated_val)
-            actor.set_keyframe_at_time(i, interpolated_val);
+            interpolated_val = tf.stack(interpolated_val);
+            let lo_result = vec3.create();
+            let hi_result = vec3.create();
+            vec3.scale(lo_result, keyframe_lo_trans, 1 - alpha);
+            vec3.scale(hi_result, keyframe_hi_trans, alpha);
+            let interp_trans = vec3.create();
+            vec3.add(interp_trans, lo_result, hi_result);
+            interp_trans = tf.tensor(interp_trans);
+
+            actor.set_keyframe_at_time(i, interpolated_val, interp_trans);
         }
 
         if(force_refresh){
@@ -44,7 +55,8 @@ export class InterpolationWidget{
     }
 
     async interpolate_all_frames(actor){
-        this.params.keyframe_inds.sort();
+        this.params.keyframe_inds.sort(function(a, b){return a-b});
+        
         for (let i = 0; i < this.params.keyframe_inds.length-1; i++) {
             console.log(this.params.keyframe_inds[i],this.params.keyframe_inds[i+1] )
             await this.interpolate_between_keyframes(actor, this.params.keyframe_inds[i], this.params.keyframe_inds[i+1], false);

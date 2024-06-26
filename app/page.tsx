@@ -51,6 +51,7 @@ export default function Home() {
     draw_once: boolean;
     currTime: number;
     previousValues: { [key: number]: number[] };
+    previousValues_trans: { [key: number]: number[] };
     clickables: any[];
     clicked: { id: string | number } | null;
     keyframe_inds: number[];
@@ -58,10 +59,11 @@ export default function Home() {
   }
 
   let params: Params = {
-    pause: false,
-    draw_once: false,
+    pause: true,
+    draw_once: true,
     currTime: 0,
     previousValues: {},
+    previousValues_trans: {},
     clickables: [] as any[],
     clicked: null,
     keyframe_inds: [],
@@ -69,6 +71,7 @@ export default function Home() {
   };
 
   const tot_frames = 60;
+  
   let globalTimeline = new Timeline(params, tot_frames);
   let keyframeCreationWidget = new KeyframeCreationWidget(params, tot_frames);
   let interpolationWidget = new InterpolationWidget(params);
@@ -159,6 +162,33 @@ export default function Home() {
       const { angle, coord } = (e as CustomEvent<{ angle: number, coord: number }>).detail;
       handleAngleChange(angle, coord);
     });
+
+    const handleTranslationChange = async (translation: number, coord: number) => {
+      if (actor && actor.skeletonRenderer && params["clicked"] != null) {
+        let joint_id = params["clicked"].id as number;
+        if(joint_id == 0){
+          if (!(joint_id in params.previousValues_trans)) {
+            params.previousValues_trans[joint_id] = [0, 0, 0];
+          }
+          if( !(params.keyframe_inds.indexOf(globalTimeline.curr_time) > -1)){
+            keyframeCreationWidget.createKeyframe(globalTimeline.curr_time);
+          }
+          const previousTrans = params.previousValues_trans[joint_id][coord];
+          params.previousValues_trans[joint_id][coord] = translation;
+          const translate_by = translation - previousTrans;
+        
+          actor.update_trans(globalTimeline.curr_time, translate_by, coord);
+
+          params["draw_once"] = true;
+        }
+        
+      }
+    };
+
+    document.addEventListener('translationChange', (e: Event) => {
+      const { translation, coord } = (e as CustomEvent<{ translation: number, coord: number }>).detail;
+      handleTranslationChange(translation, coord);
+    });
   
     keyframeCreationWidget.timeline_div = document.getElementById('timeline'); // Ensure this line is executed after the DOM is loaded
     keyframeCreationWidget.createKeyframe_no_event(0);
@@ -188,9 +218,10 @@ export default function Home() {
 
     let lastFrameTime = 0;
     let frameDuration = 1000 / 40;
+    let loaded = false;
 
     const renderLoop = (timestamp: number) => {
-      if (timestamp < lastFrameTime + frameDuration) {
+      if (timestamp < lastFrameTime + frameDuration && loaded) {
           requestAnimationFrame(renderLoop);
           return;
       }
@@ -206,10 +237,13 @@ export default function Home() {
           globalTimeline.increment_time_visual();
           params["currTime"] = globalTimeline.curr_time;
       }
-
-      params["draw_once"] = false;
+      
+      if(loaded){
+        params["draw_once"] = false;
+      }
 
       if(!draw_gltf && gl && actor && actor.actorRenderer && floorRenderer && actor.skeletonRenderer){
+        loaded = true;
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clearDepth(1.0);
@@ -219,10 +253,11 @@ export default function Home() {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         setCurrentFrame(globalTimeline.curr_time);
         
-        let to_skin = actor.get_skel_at_time( globalTimeline.curr_time);
+        let [to_skin, translation] = actor.get_skel_at_time( globalTimeline.curr_time);
         var A_matrix = new Float32Array(to_skin.flat());
+        var trans_matrix = new Float32Array(translation.flat());
         
-        actor.actorRenderer.render(gl, A_matrix);
+        actor.actorRenderer.render(gl, A_matrix, trans_matrix);
         floorRenderer.render(gl);
 
         gl.disable(gl.DEPTH_TEST);
@@ -270,8 +305,8 @@ export default function Home() {
     return (
       <div className="bg-white text-gray-500 p-3 border border-gray-300 w-50 rounded shadow ml-4" id="angleContainer">
       <div className="flex flex-row items-center mb-2">
-        <h3 className="text-lg font-semibold mr-2">X</h3>
-        <div className="mr-3 ml-1">-180</div>
+        <h3 className="text-lg font-semibold mr-2">RX</h3>
+        <div className="mr-3 ml-1"></div>
         <input type="range" className="w-full bg-white" min={-180} max={180} onChange={(e) => {
           const angle = parseInt(e.target.value, 10);
           if (!isNaN(angle)) {
@@ -280,11 +315,11 @@ export default function Home() {
               document.dispatchEvent(event);
             }
           }} />
-        <div className="ml-3 mr-1">{180}</div>
+        <div className="ml-3 mr-1"></div>
       </div>
       <div className="flex flex-row items-center mb-2">
-        <h3 className="text-lg font-semibold mr-2">Y</h3>
-        <div className="mr-3 ml-1">-180</div>
+        <h3 className="text-lg font-semibold mr-2">RY</h3>
+        <div className="mr-3 ml-1"></div>
         <input type="range" className="w-full bg-white" min={-180} max={180} onChange={(e) => {
           const angle = parseInt(e.target.value, 10);
           if (!isNaN(angle)) {
@@ -293,11 +328,11 @@ export default function Home() {
               document.dispatchEvent(event);
             }
           }} />
-        <div className="ml-3 mr-1">{180}</div>
+        <div className="ml-3 mr-1"></div>
       </div>
       <div className="flex flex-row items-center mb-2">
-        <h3 className="text-lg font-semibold mr-2">Z</h3>
-        <div className="mr-3 ml-1">-180</div>
+        <h3 className="text-lg font-semibold mr-2">RZ</h3>
+        <div className="mr-3 ml-1"></div>
         <input type="range" className="w-full bg-white" min={-180} max={180} onChange={(e) => {
           const angle = parseInt(e.target.value, 10);
           if (!isNaN(angle)) {
@@ -306,7 +341,46 @@ export default function Home() {
               document.dispatchEvent(event);
             }
           }} />
-        <div className="ml-3 mr-1">{180}</div>
+        <div className="ml-3 mr-1"></div>
+      </div>
+      <div className="flex flex-row items-center mb-2">
+        <h3 className="text-lg font-semibold mr-2">TX</h3>
+        <div className="mr-3 ml-1"></div>
+        <input type="range" className="w-full bg-white" min={-100} max={100} onChange={(e) => {
+          const translation = parseFloat(e.target.value) / 20.0; //parseInt(e.target.value, 10);
+          if (!isNaN(translation)) {
+            const translation_constrained = translation > 5 ? 5 : translation < -5 ? -5 : translation;
+            const event = new CustomEvent('translationChange', { detail: { translation: translation_constrained, coord: 0 } });
+            document.dispatchEvent(event);
+            }
+          }} />
+        <div className="ml-3 mr-1"></div>
+      </div>
+      <div className="flex flex-row items-center mb-2">
+        <h3 className="text-lg font-semibold mr-2">TY</h3>
+        <div className="mr-3 ml-1"></div>
+        <input type="range" className="w-full bg-white" min={-100} max={100} onChange={(e) => {
+          const translation = parseFloat(e.target.value) / 20.0; //parseInt(e.target.value, 10);
+          if (!isNaN(translation)) {
+            const translation_constrained = translation > 5 ? 5 : translation < -5 ? -5 : translation;
+            const event = new CustomEvent('translationChange', { detail: { translation: translation_constrained, coord: 1 } });
+            document.dispatchEvent(event);
+            }
+          }} />
+        <div className="ml-3 mr-1"></div>
+      </div>
+      <div className="flex flex-row items-center mb-2">
+        <h3 className="text-lg font-semibold mr-2">TZ</h3>
+        <div className="mr-3 ml-1"></div>
+        <input type="range" className="w-full bg-white" min={-100} max={100} onChange={(e) => {
+          const translation = parseFloat(e.target.value) / 20.0; //parseInt(e.target.value, 10);
+          if (!isNaN(translation)) {
+            const translation_constrained = translation > 5 ? 5 : translation < -5 ? -5 : translation;
+            const event = new CustomEvent('translationChange', { detail: { translation: translation_constrained, coord: 2 } });
+            document.dispatchEvent(event);
+            }
+          }} />
+        <div className="ml-3 mr-1"></div>
       </div>
     </div>
     )

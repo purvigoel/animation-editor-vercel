@@ -59,6 +59,7 @@ export function addMouseEvents(canvas, clickables, render, gl, params) {
                     clicked = true;
                     click_id = i;
                     params["clicked"] = clickables[i];
+
                     break;
                 }
             }

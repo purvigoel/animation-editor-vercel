@@ -26,7 +26,17 @@ export class KeyframeWidget {
         dot.addEventListener('click', () => {
             const event = new CustomEvent('frameChange', { detail: this.time });
             document.dispatchEvent(event);
+            //dot.style.backgroundColor="yellow";
+            this.select();
         });
+    }
+
+    deselect(){
+        this.vis_dot.style.backgroundColor = "blue";
+    }
+
+    select(){
+        this.vis_dot.style.backgroundColor = "yellow";
     }
 
     showKeyframeOnTimeline_no_event( timeline_div, time){
@@ -48,6 +58,8 @@ export class KeyframeWidget {
         dot.addEventListener('click', () => {
             const event = new CustomEvent('frameChange', { detail: this.time });
             document.dispatchEvent(event);
+            //dot.style.backgroundColor="yellow";
+            this.select();
         });
     }
 }

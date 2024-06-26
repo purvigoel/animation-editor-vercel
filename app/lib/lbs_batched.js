@@ -1,26 +1,25 @@
 import * as tf from '@tensorflow/tfjs';
 
-export async function lbs(betas, pose, v_template, shapedirs, posedirs, J_regressor, parents, lbs_weights, pose2rot = true) {
+export async function lbs(betas, pose, vertices2joints_precompute, v_template, shapedirs, posedirs, J_regressor, parents, lbs_weights, pose2rot = true) {
     tf.setBackend("cpu");
     
     const batch_size = Math.max(betas.shape[0], pose.shape[0]);
-    console.log("start lbs");
+    
     betas = betas.tile([60, 1]);
 
     // Add shape contribution
     let v_shaped = v_template.add(blendShapes(betas, shapedirs));
-    console.log("finish blendshapes");
+    
     // // Get the joints
-    let J = vertices2joints(J_regressor, v_shaped);
-    console.log("finish v2j");
+    //let J = vertices2joints(J_regressor, v_shaped);
+    let J = vertices2joints_precompute;
     const ident = tf.eye(3);
     let rot_mats, pose_feature, pose_offsets;
         
     pose_feature = pose.slice([0, 0, 1, 0, 0], [-1, -1, -1, -1, -1]).sub(ident);
     rot_mats = pose.reshape([batch_size, -1, 3, 3]);
-
+    
     const [J_transformed, A] = await batchRigidTransform(rot_mats, J, parents);
-    console.log("finish lbs");
     return [J_transformed, v_shaped, A, J];
 }
 
