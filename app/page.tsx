@@ -3,16 +3,16 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Actor } from "./lib/actor";
-import { ActorRenderer } from "./lib/actor_renderer";
+// import { ActorRenderer } from "./lib/actor_renderer";
 import {addAllEvents} from "./lib/key_handler.js";
 import {Timeline} from "./lib/timeline.js";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDownload, faAngleDoubleRight, faAngleDown, faAngleUp } from '@fortawesome/free-solid-svg-icons';
 import { Popover } from 'react-tiny-popover';
 import { FloorRenderer } from "./lib/floor_renderer";
-import {AngleControllerRenderer} from "./lib/angle_controller_renderer";
+// import {AngleControllerRenderer} from "./lib/angle_controller_renderer";
 import {angle_to_rotmat} from "./lib/angle_controller";
-import { SkeletonRenderer } from "./lib/skeleton_renderer";
+// import { SkeletonRenderer } from "./lib/skeleton_renderer";
 import {addMouseEvents} from "./lib/mouse_handler.js";
 import {addAngleControl} from "./lib/angle_controller.js";
 import {KeyframeCreationWidget} from "./lib/keyframe_creation_widget.js";
@@ -77,184 +77,234 @@ export default function Home() {
   let actor: Actor | null = null;
 
   useEffect(() => {
-    if (isInitializedRef.current) return; // Prevent re-initialization
-    isInitializedRef.current = true;
-
-   
-    
-    let gltf : GLTF | null = null;
-    let floorRenderer: FloorRenderer | null = null;
-    let clickables: any[] = [];
-
-    const canvas = document.getElementById("mainCanvas") as HTMLCanvasElement;
-    
-    const gl = canvas.getContext('webgl2');
-    const context = canvas.getContext("2d");
+    async function init() {
+      if (isInitializedRef.current) return; // Prevent re-initialization
+      isInitializedRef.current = true;
 
     
-    const resizeCanvas = () => {
-      if (canvas) {
-        canvas.width = canvas.clientWidth;
-        canvas.height = canvas.clientHeight;
-      }
-    };
-    
-    resizeCanvas(); // Initial resize
-    window.addEventListener('resize', resizeCanvas); 
+      
+      let gltf : GLTF | null = null;
+      let floorRenderer: FloorRenderer | null = null;
+      let clickables: any[] = [];
 
-    const initializeActor = async () => {
-      console.log("initializing actor");
-      actor = new Actor(tot_frames, gl);
-      await actor.init();
-      if(actor.skeletonRenderer){
-        clickables.push(... actor.skeletonRenderer.getClickables());
-        params["clickables"] = clickables;
+      const canvas = document.getElementById("mainCanvas") as HTMLCanvasElement;
+      
+      //const gl = canvas.getContext('webgl2');
+    
+      if (!navigator.gpu) {
+        throw new Error("WebGPU not supported on this browser.");
       }
 
-    };
+      // Get an adapter
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) {
+        throw new Error("No appropriate GPUAdapter found.");
+      }
 
-    const initializeFloor = () => {
-      floorRenderer = new FloorRenderer(gl);
-    };
+      // Get the device
+      const device = await adapter.requestDevice();
+      const context = canvas.getContext("webgpu");
+      if (!context) {
+        throw new Error ("context is null");
+      }
 
-    const handleFrameChange = (frame: number) => {
-        if (globalTimeline) {
-          globalTimeline.curr_time = frame;
-          params["currTime"] = frame;
+      context.configure({
+        device: device,
+        format: navigator.gpu.getPreferredCanvasFormat(),
+      });
+      
+      const resizeCanvas = () => {
+        if (canvas) {
+          canvas.width = canvas.clientWidth;
+          canvas.height = canvas.clientHeight;
+        }
+      };
+      
+      resizeCanvas(); // Initial resize
+      window.addEventListener('resize', resizeCanvas); 
+
+      /*
+      const initializeActor = async () => {
+        console.log("initializing actor");
+        actor = new Actor(tot_frames, gl);
+        await actor.init();
+        if(actor.skeletonRenderer){
+          clickables.push(... actor.skeletonRenderer.getClickables());
+          params["clickables"] = clickables;
+        }
+
+      };
+      */
+
+
+      const initializeFloor = () => {
+        floorRenderer = new FloorRenderer(device);
+      };
+
+      const handleFrameChange = (frame: number) => {
+          if (globalTimeline) {
+            globalTimeline.curr_time = frame;
+            params["currTime"] = frame;
+            params["draw_once"] = true;
+          }
+        };
+
+      document.addEventListener('frameChange', (e: Event) => handleFrameChange((e as CustomEvent).detail));
+      
+      const handleInterpolate = async () => {
+        if (actor) {
+          await interpolationWidget.interpolate_all_frames(actor);
+        }
+      };
+      document.addEventListener('interpolateChange', handleInterpolate);
+      
+      const handleAngleChange = async (angle: number, coord: number) => {
+        if (actor && actor.skeletonRenderer && params["clicked"] != null) {
+          let joint_id = params["clicked"].id as number;
+          if (!(joint_id in params.previousValues)) {
+            params.previousValues[joint_id] = [0, 0, 0];
+          }
+          
+          if( !(params.keyframe_inds.indexOf(globalTimeline.curr_time) > -1)){
+            keyframeCreationWidget.createKeyframe(globalTimeline.curr_time);
+          }
+          
+          const previousAngle = parseFloat(params.previousValues[joint_id][coord].toString()) * Math.PI / 180;
+          params.previousValues[joint_id][coord] = angle;
+          const rotmat = angle_to_rotmat(coord, angle * (Math.PI / 180) - previousAngle);
+          
+          actor.update_pose(globalTimeline.curr_time, rotmat, params["clicked"].id);
+
           params["draw_once"] = true;
         }
       };
 
-    document.addEventListener('frameChange', (e: Event) => handleFrameChange((e as CustomEvent).detail));
+      document.addEventListener('angleChange', (e: Event) => {
+        const { angle, coord } = (e as CustomEvent<{ angle: number, coord: number }>).detail;
+        handleAngleChange(angle, coord);
+      });
     
-    const handleInterpolate = async () => {
-      if (actor) {
-        await interpolationWidget.interpolate_all_frames(actor);
+      keyframeCreationWidget.timeline_div = document.getElementById('timeline'); // Ensure this line is executed after the DOM is loaded
+      keyframeCreationWidget.createKeyframe_no_event(0);
+      keyframeCreationWidget.createKeyframe_no_event(tot_frames - 1);
+      
+      let camera_view = null;
+      let camera_projection = null;
+      let meshProgramInfo = null;
+      const sharedUniforms = {
+        u_lightDirection: m4.normalize([-1, 3, 5]),
+      };
+      const loadGLFT = async() => {
+        camera.theta = 1;
+        camera.lookAt = [0, 0, -2];
+        camera.radius = 10;
+        // [camera_view, camera_projection, ] = getViewProjectionMatrix(gl)
+        //meshProgramInfo = webglUtils.createProgramInfo(gl, [gltf_vertexShaderSource, gltf_fragmentShaderSource]);
+        //console.log(meshProgramInfo)
+        //gltf = await loadGLTF('/data/ABeautifulGame.gltf', gl);
+        //adjustCamera(gltf.boundingBox)
       }
-    };
-    document.addEventListener('interpolateChange', handleInterpolate);
-    
-    const handleAngleChange = async (angle: number, coord: number) => {
-      if (actor && actor.skeletonRenderer && params["clicked"] != null) {
-        let joint_id = params["clicked"].id as number;
-        if (!(joint_id in params.previousValues)) {
-          params.previousValues[joint_id] = [0, 0, 0];
+      if(draw_gltf){
+        loadGLFT();
+      }
+      
+      
+
+      let lastFrameTime = 0;
+      let frameDuration = 1000 / 40;
+
+      const renderLoop = (timestamp: number) => {
+        if (timestamp < lastFrameTime + frameDuration) {
+            requestAnimationFrame(renderLoop);
+            return;
         }
-        
-        if( !(params.keyframe_inds.indexOf(globalTimeline.curr_time) > -1)){
-          keyframeCreationWidget.createKeyframe(globalTimeline.curr_time);
+        if (params["pause"] && !params["draw_once"]) {
+            requestAnimationFrame(renderLoop);
+            return;
         }
+
+        lastFrameTime = timestamp;
+
+        if (!params["draw_once"]){
+            globalTimeline.increment_time();
+            globalTimeline.increment_time_visual();
+            params["currTime"] = globalTimeline.curr_time;
+        }
+
+        params["draw_once"] = false;
+        const encoder = device.createCommandEncoder();
+        const pass = encoder.beginRenderPass({
+          colorAttachments: [{
+            view: context.getCurrentTexture().createView(),
+            loadOp: "clear",
+            clearValue: [0.1, 0.1, 0.1, 1.0],
+            storeOp: "store",
+          }]
+        });
+
+        if (floorRenderer) {
+          console.log ("rendering floor");
+          pass.setPipeline(floorRenderer.pipeline);
+          pass.setVertexBuffer(0, floorRenderer.positionBuffer);
+          pass.draw(4);
+        }
+
         
-        const previousAngle = parseFloat(params.previousValues[joint_id][coord].toString()) * Math.PI / 180;
-        params.previousValues[joint_id][coord] = angle;
-        const rotmat = angle_to_rotmat(coord, angle * (Math.PI / 180) - previousAngle);
-        
-        actor.update_pose(globalTimeline.curr_time, rotmat, params["clicked"].id);
+        pass.end();
+        // Finish the command buffer and immediately submit it.
+        device.queue.submit([encoder.finish()]);
 
-        params["draw_once"] = true;
-      }
-    };
+        /* if(!draw_gltf && gl && actor && actor.actorRenderer && floorRenderer && actor.skeletonRenderer){
+          gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+          gl.clearColor(0.0, 0.0, 0.0, 0.0);
+          gl.clearDepth(1.0);
+          gl.enable(gl.DEPTH_TEST);
+          gl.depthFunc(gl.LEQUAL);
+          
+          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+          setCurrentFrame(globalTimeline.curr_time);
+          
+          let to_skin = actor.get_skel_at_time( globalTimeline.curr_time);
+          var A_matrix = new Float32Array(to_skin.flat());
+          
+          actor.actorRenderer.render(gl, A_matrix);
+          floorRenderer.render(gl);
 
-    document.addEventListener('angleChange', (e: Event) => {
-      const { angle, coord } = (e as CustomEvent<{ angle: number, coord: number }>).detail;
-      handleAngleChange(angle, coord);
-    });
-  
-    keyframeCreationWidget.timeline_div = document.getElementById('timeline'); // Ensure this line is executed after the DOM is loaded
-    keyframeCreationWidget.createKeyframe_no_event(0);
-    keyframeCreationWidget.createKeyframe_no_event(tot_frames - 1);
-    
-    let camera_view = null;
-    let camera_projection = null;
-    let meshProgramInfo = null;
-    const sharedUniforms = {
-      u_lightDirection: m4.normalize([-1, 3, 5]),
-    };
-    const loadGLFT = async() => {
-      camera.theta = 1;
-      camera.lookAt = [0, 0, -2];
-      camera.radius = 10;
-      [camera_view, camera_projection, ] = getViewProjectionMatrix(gl)
-      //meshProgramInfo = webglUtils.createProgramInfo(gl, [gltf_vertexShaderSource, gltf_fragmentShaderSource]);
-      //console.log(meshProgramInfo)
-      //gltf = await loadGLTF('/data/ABeautifulGame.gltf', gl);
-      //adjustCamera(gltf.boundingBox)
-    }
-    if(draw_gltf){
-      loadGLFT();
-    }
-    
-    
+          gl.disable(gl.DEPTH_TEST);
+          actor.skeletonRenderer.render(gl, globalTimeline.curr_time);
+        }
 
-    let lastFrameTime = 0;
-    let frameDuration = 1000 / 40;
+        if(draw_gltf && gl && gltf){
+          gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+          gl.clearColor(0.0, 0.0, 0.0, 0.0);
+          gl.clearDepth(1.0);
+          gl.enable(gl.DEPTH_TEST);
+          gl.depthFunc(gl.LEQUAL);
+          
+          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+          setCurrentFrame(globalTimeline.curr_time);
 
-    const renderLoop = (timestamp: number) => {
-      if (timestamp < lastFrameTime + frameDuration) {
-          requestAnimationFrame(renderLoop);
-          return;
-      }
-      if (params["pause"] && !params["draw_once"]) {
-          requestAnimationFrame(renderLoop);
-          return;
-      }
+          [camera_view, camera_projection, ] = getViewProjectionMatrix(gl)
+          //renderScene(gltf, camera_projection, camera_view, sharedUniforms, meshProgramInfo);
+        } */
 
-      lastFrameTime = timestamp;
-
-      if (!params["draw_once"]){
-          globalTimeline.increment_time();
-          globalTimeline.increment_time_visual();
-          params["currTime"] = globalTimeline.curr_time;
-      }
-
-      params["draw_once"] = false;
-
-      if(!draw_gltf && gl && actor && actor.actorRenderer && floorRenderer && actor.skeletonRenderer){
-        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-        gl.clearColor(0.0, 0.0, 0.0, 0.0);
-        gl.clearDepth(1.0);
-        gl.enable(gl.DEPTH_TEST);
-        gl.depthFunc(gl.LEQUAL);
-        
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        setCurrentFrame(globalTimeline.curr_time);
-        
-        let to_skin = actor.get_skel_at_time( globalTimeline.curr_time);
-        var A_matrix = new Float32Array(to_skin.flat());
-        
-        actor.actorRenderer.render(gl, A_matrix);
-        floorRenderer.render(gl);
-
-        gl.disable(gl.DEPTH_TEST);
-        actor.skeletonRenderer.render(gl, globalTimeline.curr_time);
+        requestAnimationFrame(renderLoop);
       }
 
-      if(draw_gltf && gl && gltf){
-        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-        gl.clearColor(0.0, 0.0, 0.0, 0.0);
-        gl.clearDepth(1.0);
-        gl.enable(gl.DEPTH_TEST);
-        gl.depthFunc(gl.LEQUAL);
-        
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        setCurrentFrame(globalTimeline.curr_time);
+      if(!draw_gltf){
+        // initializeActor();
+        console.log("Initializing floor");
+        initializeFloor();
 
-        [camera_view, camera_projection, ] = getViewProjectionMatrix(gl)
-        //renderScene(gltf, camera_projection, camera_view, sharedUniforms, meshProgramInfo);
       }
-
+      //addAllEvents(gl, canvas, renderLoop, params);
+      //addMouseEvents(canvas, clickables, renderLoop, gl, params);
+      
       requestAnimationFrame(renderLoop);
-    }
 
-    if(!draw_gltf){
-      initializeActor();
-      initializeFloor();
-    }
-    addAllEvents(gl, canvas, renderLoop, params);
-    addMouseEvents(canvas, clickables, renderLoop, gl, params);
-    
-    requestAnimationFrame(renderLoop);
 
+    }
+    init ();
   }, []);
 
   const handleDownload = () => {

@@ -30,9 +30,25 @@ export class SkeletonRenderer {
         return this.clickables;
     }
 
-    initializeShaderProgram(gl){
+    initializeShaderProgram(device){
+        const skel_shaderModule = device.createShaderModule ( {
+            label : "Skeleton shader",
+            code:
+            `
+                @vertex
+                fn vertexMain(@location(0) pos: vec2f) ->
+                    @builtin(position) vec4f {
+                    return vec4f (pos, 0, 1);
+                }
+                @fragment
+                fn fragmentMain() -> @location(0) vec4f {
+                    return vec4f (1, 1, 0, 1);
+                }
+            `
+        }
+        );
        
-        const skel_vertexShaderSource = `
+        /* const skel_vertexShaderSource = `
         attribute vec3 a_position;
         uniform mat4 u_matrix;
 
@@ -55,7 +71,7 @@ export class SkeletonRenderer {
 
         const skel_vertexShader = this.createShader(gl, gl.VERTEX_SHADER, skel_vertexShaderSource);
         const skel_fragmentShader = this.createShader(gl, gl.FRAGMENT_SHADER, skel_fragmentShaderSource);
-        this.skel_program = this.createProgram(gl, skel_vertexShader, skel_fragmentShader);
+        this.skel_program = this.createProgram(gl, skel_vertexShader, skel_fragmentShader); */
     }
 
     createShader(gl, type, source) {
@@ -175,7 +191,7 @@ export class SkeletonRenderer {
     
 
     initializeBuffers(gl){
-        this.positionBuffer = gl.createBuffer();
+        /*this.positionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.joint_buffer[0]), gl.STATIC_DRAW);
 
@@ -186,7 +202,7 @@ export class SkeletonRenderer {
 
         this.indexBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.sphere.indices, gl.STATIC_DRAW);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.sphere.indices, gl.STATIC_DRAW);*/
 
         for (let i = 0; i < 24; i ++) {
             this.clickables.push(new Clickable([-100, -100, -100], 0.025, gl, i));

@@ -1,18 +1,22 @@
+import { data } from "@tensorflow/tfjs-node";
 import {setCameraMatrix} from "./camera.js";
 function isPowerOf2(value) {
     return (value & (value - 1)) === 0;
-  }
+}
+
 export class FloorRenderer {
-    constructor(gl){
+    constructor(device){
         this.program = null;
         this.positionBuffer = null;
         this.normalBuffer = null;
         this.texCoordsBuffer = null;
         this.texture = null;
 
+        this.pipeline = null;
+
         //this.initialize_texture(gl);
-        this.initialize_shader_program(gl);
-        this.initialize_buffers(gl);
+        this.initialize_shader_program(device);
+        this.initialize_buffers(device);
     }
 
 
@@ -20,7 +24,7 @@ export class FloorRenderer {
         https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
     */
     load_textures(gl) {
-        const texture = gl.createTexture();
+        /* const texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
 
         const level = 0;
@@ -73,11 +77,11 @@ export class FloorRenderer {
             }
         };
 
-        return texture;
+        return texture; */
     }
     
-    initialize_shader_program(gl) {
-        const vertexShaderSource = `
+    initialize_shader_program(device) {
+        /* const vertexShaderSource = `
             attribute vec3 a_position2;
             attribute vec2 a_texCoord;
             attribute vec3 a_normal;
@@ -120,10 +124,54 @@ export class FloorRenderer {
 
         const vertexShader = this.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
         const fragmentShader = this.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-        this.program = this.createProgram(gl, vertexShader, fragmentShader);
+        this.program = this.createProgram(gl, vertexShader, fragmentShader); */
+
+        const floorShaderModule = device.createShaderModule ({
+            label: "Floor Shader",
+            code: `
+                @vertex
+                fn vertexMain(@location(0) pos: vec3f) ->
+                    @builtin(position) vec4f {
+                    return vec4f(pos, 1);
+                }
+
+                @fragment
+                fn fragmentMain() -> @location(0) vec4f {
+                    return vec4f(1, 1, 0, 1);
+                }
+            `
+
+        });
+
+        const positionBuffer_layout = {
+            arrayStride: 12,
+            attributes: [{
+              format: "float32x3",
+              offset: 0,
+              shaderLocation: 0, // Position, see vertex shader
+            }],
+        };
+
+        this.pipeline = device.createRenderPipeline ({
+            label: "Floor pipeline",
+            layout: "auto",
+            vertex: {
+                module: floorShaderModule,
+                entryPoint: "vertexMain",
+                buffers: [positionBuffer_layout]
+            },
+            fragment: {
+                module: floorShaderModule,
+                entryPoint: "fragmentMain",
+                targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat()
+                }]
+            }
+        });
+
     }
 
-    createShader(gl, type, source) {
+    /*createShader(gl, type, source) {
         const shader = gl.createShader(type);
         gl.shaderSource(shader, source);
         gl.compileShader(shader);
@@ -145,14 +193,14 @@ export class FloorRenderer {
             return null;
         }
         return program;
-    }
+    }*/
 
-    initialize_buffers(gl) {
+    initialize_buffers(device) {
         const positions = new Float32Array([
-            -100, -1.1, -100,
-             100, -1.1, -100,
-            -100, -1.1,  100,
-             100, -1.1,  100,
+            -100, -0.1, -0.1,
+             100, -0.1, -0.1,
+            -100, -0.1,  0.1,
+             100, -0.1,  0.1,
         ]);
 
         const normals = new Float32Array([
@@ -169,7 +217,38 @@ export class FloorRenderer {
             10.0, 10.0
         ]);
 
-        this.texture = this.load_textures(gl);
+        /*const indices = new Uint16Array([
+            0, 1, 2,
+            2, 3, 0
+        ]);*/
+
+        this.positionBuffer = device.createBuffer({
+            label: "Floor vertices",
+            size: positions.byteLength,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+          });
+        /*new data.constructor(this.positionBuffer.getMappedRange()).set(positions);
+        this.positionBuffer.unmap();*/
+
+        this.normalBuffer = device.createBuffer({
+            label: "Floor normals",
+            size: normals.byteLength,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+
+        this.texCoordBuffer = device.createBuffer({
+            label: "Floor texture coordinates",
+            size: texCoords.byteLength,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        });
+
+        
+        // write data into GPUBuffers
+        device.queue.writeBuffer (this.positionBuffer, 0, positions);
+        device.queue.writeBuffer (this.normalBuffer, 0, normals);
+        device.queue.writeBuffer (this.texCoordBuffer, 0, texCoords);
+
+        /*this.texture = this.load_textures(gl);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
         this.positionBuffer = gl.createBuffer();
@@ -182,11 +261,11 @@ export class FloorRenderer {
 
         this.texCoordsBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.texCoordsBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);*/
     }
 
     render(gl) {
-        gl.useProgram(this.program);
+        /*gl.useProgram(this.program);
 
         const positionLocation = gl.getAttribLocation(this.program, 'a_position2');
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
@@ -209,7 +288,7 @@ export class FloorRenderer {
 
         setCameraMatrix(gl, this.program);
 
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);*/
     }
 
 } 
