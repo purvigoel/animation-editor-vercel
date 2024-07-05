@@ -26,10 +26,10 @@ function handleMouseMove(event, render) {
     render();
 }
 
-function handleKeyDown(gl, canvas, event, render, params) {
+function handleKeyDown(canvas, event, render, params) {
     if (event.code === 'Space') {
         params["pause"] = !params["pause"];
-        addMouseEvents(canvas, params["clickables"], render, gl, params);
+        addMouseEvents(canvas, params["clickables"], render, params);
     }
 }
 
@@ -37,7 +37,7 @@ function handleMouseUp() {
     camera.isDragging = false;
 }
 
-export function addAllEvents(gl, canvas, render, params){
+export function addAllEvents(canvas, render, params){
     canvas.addEventListener('wheel', function(event){
         params["draw_once"] = true;
         handleScroll(event,render);
@@ -61,6 +61,6 @@ export function addAllEvents(gl, canvas, render, params){
 
     window.addEventListener('keydown', function(event){
         params["draw_once"] = true;
-        handleKeyDown(gl, canvas, event, render, params);
+        handleKeyDown(canvas, event, render, params);
     });
 }

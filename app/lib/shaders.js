@@ -1,4 +1,82 @@
 const vertexShaderSource = `
+    struct Uniforms {
+        u_matrix : mat4x4f,
+    }
+    
+    struct VertexOutput {
+        @builtin(position) vPosition : vec4f,
+        @location(0) vNormal : vec3f,
+        @location(1) vViewPosition : vec3f,
+        @location(2) fragPos : vec3f
+    }
+
+    @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
+    @group(0) @binding(1) var<uniform> u_uniformArray : array<vec4f, 384/4>;
+
+    fn getBoneMatrix (jointNdx : i32) -> mat4x4f {
+        var v : i32 = jointNdx * 4 ;
+        return mat4x4f (
+            u_uniformArray[v].x, u_uniformArray[v + 1].x, u_uniformArray[v + 2].x, u_uniformArray[v + 3].x,
+            u_uniformArray[v].y, u_uniformArray[v + 1].y, u_uniformArray[v + 2].y, u_uniformArray[v + 3].y,
+            u_uniformArray[v].z, u_uniformArray[v + 1].z, u_uniformArray[v + 2].z, u_uniformArray[v + 3].z,
+            u_uniformArray[v].w, u_uniformArray[v + 1].w, u_uniformArray[v + 2].w, u_uniformArray[v + 3].w,
+        ); 
+       /* return mat4x4f (
+            u_uniformArray[v], u_uniformArray[v + 4], u_uniformArray[v + 8], u_uniformArray[v + 12],
+            u_uniformArray[v + 1], u_uniformArray[v + 5], u_uniformArray[v + 9], u_uniformArray[v + 13],
+            u_uniformArray[v + 2], u_uniformArray[v + 6], u_uniformArray[v + 10], u_uniformArray[v + 14],
+            u_uniformArray[v + 3], u_uniformArray[v + 7], u_uniformArray[v + 11], u_uniformArray[v + 15]
+        ); */
+    }
+
+    @vertex
+    fn vertexMain( @location(0) a_position: vec3f,
+                    @location(1) a_JOINTS : vec4f,
+                    @location(2) a_WEIGHTS : vec4f,
+                    @location(3) a_normal : vec3f) ->
+        VertexOutput {
+        var output : VertexOutput;
+        output.fragPos = a_position;
+        var skinPosition : vec4f = vec4f(0.0);
+        var skinMatrix : mat4x4f = mat4x4f();
+
+        for (var i = 0; i < 4; i++) {
+            var jointIndex : i32 = i32(a_JOINTS[i]);
+            var weight : f32 = a_WEIGHTS[i];
+            skinPosition += weight * (getBoneMatrix(jointIndex) * vec4f (a_position, 1.0f) );
+            skinMatrix += weight * (getBoneMatrix(jointIndex));
+        }
+    
+        var temp : mat4x4f = u_matrix * skinMatrix;
+        output.vNormal = mat3x3f (temp[0].xyz, temp[1].xyz, temp[2].xyz) * a_normal;
+        output.vPosition = (u_matrix * skinPosition);
+        output.vViewPosition = (u_matrix * vec4f(0.0, 0, 0, 1)).xyz;
+        return output;
+    }    
+`;
+const fragmentShaderSource = `
+    @fragment
+    fn fragmentMain( @location(0) vNormal : vec3f,
+                    @location(1) vViewPosition : vec3f, @location(2) vPosition : vec3f) -> @location(0) vec4f {
+        //return vec4(vViewPosition, 1.0f);
+        var uLightColor : vec3f = vec3f(1.0, 1.0, 1.0);
+        var vLightPosition : vec3f = vec3f(0, 1.5, 0);
+        var uObjectColor : vec3f = vec3f(1.0, 0.0, 0.0);
+
+        var ambientStrength : f32 = 0.4;
+        var ambient : vec3f = ambientStrength * uLightColor;
+        
+        var norm : vec3f = normalize (vNormal);
+        var lightDir : vec3f = normalize (vLightPosition - vPosition);
+        var diff : f32 = max (dot (norm, lightDir), 0.0);
+        var diffuse : vec3f = diff * uLightColor;
+
+        var result : vec3f = (ambient + diffuse) * uObjectColor;
+        return vec4(result, 1.0);
+        //return vec4f(testR, 0, 0, 1);
+    }
+`;
+/*const vertexShaderSource = `
     attribute vec3 a_position;
     attribute vec4 a_JOINTS;
     attribute vec4 a_WEIGHTS;
@@ -70,35 +148,75 @@ const fragmentShaderSource = `
         gl_FragColor = vec4(result, 1.0);
         
     }
-`;
+`;*/
 
-export function createShader(gl, type, source) {
-    const shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
-        gl.deleteShader(shader);
-        return null;
-    }
-    return shader;
-}
+export function createAllShaders(device){
+    const vertexShaderModule = device.createShaderModule ({
+        label: "Vertex Shader",
+        code: vertexShaderSource
+    });
+    const fragmentShaderModule = device.createShaderModule ({
+        label: "Fragment Shader",
+        code: fragmentShaderSource
+    });
 
-export function createProgram(gl, vertexShader, fragmentShader) {
-    const program = gl.createProgram();
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(program));
-        return null;
-    }
-    return program;
-}
-
-export function createAllShaders(gl){
-    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-    const program = createProgram(gl, vertexShader, fragmentShader);
-    return program;
+    const pipeline = device.createRenderPipeline ({
+        label : "Pipeline",
+        layout: "auto",
+        vertex: {
+            module: vertexShaderModule,
+            entryPoint: "vertexMain",
+            buffers: [
+                // Position Buffer
+                {
+                    arrayStride: 3 * 4,
+                    attributes: [{
+                      format: "float32x3",
+                      offset: 0,
+                      shaderLocation: 0, // Position, see vertex shader
+                    }],
+                },
+                // joints buffer
+                {
+                    arrayStride: 4 * 4,
+                    attributes: [{
+                        format: "float32x4",
+                        offset: 0,
+                        shaderLocation: 1, 
+                    }],
+                },
+                // weights buffer
+                {
+                    arrayStride: 4 * 4,
+                    attributes: [{
+                        format: "float32x4",
+                        offset: 0,
+                        shaderLocation: 2,
+                    }],
+                },
+                // normals buffer
+                {
+                    arrayStride: 3 * 4,
+                    attributes: [{
+                        format: "float32x3",
+                        offset: 0,
+                        shaderLocation: 3,
+                    }],
+                }
+            ]
+        },
+        fragment: {
+            module: fragmentShaderModule,
+            entryPoint: "fragmentMain",
+            targets: [{
+                format: navigator.gpu.getPreferredCanvasFormat()
+            }]
+        },
+        depthStencil: {
+            depthWriteEnabled: true,
+            depthCompare: "less",
+            format: "depth24plus"
+        }
+    })
+    return pipeline;
 }

@@ -1,50 +1,22 @@
-import { getCameraMatrix } from "./camera";
+import { cameraBuffer, getCameraMatrix } from "./camera";
 import {m4} from "./m4.js";
 
 export class AngleControllerRenderer{
-    constructor(gl){
-        this.gl = gl;
-        this.arrowProgram = null;
-        this.ringProgram = null;
+    constructor(device){
+        this.arrowPipeline = null;
+        this.ringPipeline = null;
         this.arrowVertices = null;
         this.ringVerticesXY = null;
         this.ringVerticesYZ = null;
         this.ringVerticesXZ = null;
-        this.initializeShaderProgram(this.gl);
-        this.controller = this.initializeShaders(this.gl);
+        this.initializeShaderProgram(device);
+        this.controller = this.initializeShaders(device);
 
 
     }
 
-    createShader(gl, type, source) {
-        const shader = gl.createShader(type);
-        gl.shaderSource(shader, source);
-        gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-          console.error('Shader compile failed with: ' + gl.getShaderInfoLog(shader));
-          gl.deleteShader(shader);
-          return null;
-        }
-        return shader;
-    }
-
-    createProgram(gl, vertexShaderSource, fragmentShaderSource) {
-        const vertexShader = this.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-        const fragmentShader = this.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-        const program = gl.createProgram();
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
-        gl.linkProgram(program);
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-          console.error('Program failed to link: ' + gl.getProgramInfoLog(program));
-          gl.deleteProgram(program);
-          return null;
-        }
-        return program;
-      }
-
-    initializeShaderProgram(gl){
-        const arrowVertexShaderSource = `
+    initializeShaderProgram(device){
+        /*const arrowVertexShaderSource = `
         attribute vec4 a_position;
         uniform mat4 u_mvpMatrix;
         
@@ -71,32 +43,150 @@ export class AngleControllerRenderer{
 
         void main() {
         gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);  // Green color for rings
-        }`;  // Add your ring fragment shader source here
+        }`;  // Add your ring fragment shader source here*/
 
-        this.arrowProgram = this.createProgram(gl, arrowVertexShaderSource, arrowFragmentShaderSource);
-        this.ringProgram = this.createProgram(gl, ringVertexShaderSource, ringFragmentShaderSource);
+        const arrowShaderSource = `
+          @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
+          @vertex
+          fn vertexMain (@location(0) a_position : vec3f) -> @builtin(position) vec4f {
+            return u_matrix * vec4f(a_position, 1);
+          }
+
+          @fragment
+          fn fragmentMain () -> @location(0) vec4f  {
+            return vec4(1, 0, 0, 1);
+          }
+        `
+        const ringShaderSource = `
+          @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
+          @vertex
+          fn vertexMain (@location(0) a_position : vec3f) -> @builtin(position) vec4f {
+            return u_matrix * vec4f(a_position, 1);
+          }
+
+          @fragment
+          fn fragmentMain () -> @location(0) vec4f  {
+            return vec4(0, 1, 0, 1);
+          }
+        `
+        const arrowShaderModule = device.createShaderModule({
+          label: "arrow shader",
+          code: arrowShaderSource
+        })
+        const ringShaderModule = device.createShaderModule({
+          label: "ring shader",
+          code: ringShaderSource
+        })
+        this.arrowPipeline = device.createRenderPipeline ({
+          label : "Arrow Pipeline",
+          layout: "auto",
+          vertex: {
+              module: arrowShaderModule,
+              entryPoint: "vertexMain",
+              buffers: [
+                  // Position Buffer
+                  {
+                      arrayStride: 3 * 4,
+                      attributes: [{
+                        format: "float32x3",
+                        offset: 0,
+                        shaderLocation: 0, // Position, see vertex shader
+                      }],
+                  }
+              ]
+          },
+          fragment: {
+              module: arrowShaderModule,
+              entryPoint: "fragmentMain",
+              targets: [{
+                  format: navigator.gpu.getPreferredCanvasFormat()
+              }]
+          },
+          primitive : {
+            topology: "line-strip"
+          },
+          depthStencil: {
+              depthWriteEnabled: true,
+              depthCompare: "always",
+              format: "depth24plus"
+          }
+        })
+
+        this.ringPipeline = device.createRenderPipeline ({
+            label : "Ring Pipeline",
+            layout: "auto",
+            vertex: {
+                module: ringShaderModule,
+                entryPoint: "vertexMain",
+                buffers: [
+                    // Position Buffer
+                    {
+                        arrayStride: 3 * 4,
+                        attributes: [{
+                          format: "float32x3",
+                          offset: 0,
+                          shaderLocation: 0, // Position, see vertex shader
+                        }],
+                    }
+                ]
+            },
+            fragment: {
+                module: ringShaderModule,
+                entryPoint: "fragmentMain",
+                targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat()
+                }]
+            },
+            depthStencil: {
+                depthWriteEnabled: true,
+                depthCompare: "always",
+                format: "depth24plus"
+            }
+        })
+
+        this.arrowBindGroup = device.createBindGroup({
+          layout: this.arrowPipeline.getBindGroupLayout(0),
+          entries : [{
+            binding : 0,
+            resource: {buffer: cameraBuffer}
+          }]
+        })
+        this.ringBindGroup = device.createBindGroup({
+          layout: this.ringPipeline.getBindGroupLayout(0),
+          entries : [{
+            binding : 0,
+            resource: {buffer: cameraBuffer}
+          }]
+        })
       
     }
 
-    initializeShaders(gl) {
+    initializeShaders(device) {
         // Create buffers for the translation arrows
-        const arrowBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);
         const arrowVertices = new Float32Array([
-            // X-axis arrow (red)
-            0.0, 0.0, 0.0,  1.0, 0.0, 0.0,
-            1.0, 0.0, 0.0,  0.9, 0.1, 0.0,
-            1.0, 0.0, 0.0,  0.9, -0.1, 0.0,
-            // Y-axis arrow (green)
-            0.0, 0.0, 0.0,  0.0, 1.0, 0.0,
-            0.0, 1.0, 0.0,  0.1, 0.9, 0.0,
-            0.0, 1.0, 0.0,  -0.1, 0.9, 0.0,
-            // Z-axis arrow (blue)
-            0.0, 0.0, 0.0,  0.0, 0.0, 1.0,
-            0.0, 0.0, 1.0,  0.0, 0.1, 0.9,
-            0.0, 0.0, 1.0,  0.0, -0.1, 0.9,
-          ]);
-        gl.bufferData(gl.ARRAY_BUFFER, arrowVertices, gl.STATIC_DRAW);
+          // X-axis arrow (red)
+          0.0, 0.0, 0.0,  1.0, 0.0, 0.0,
+          1.0, 0.0, 0.0,  0.9, 0.1, 0.0,
+          1.0, 0.0, 0.0,  0.9, -0.1, 0.0,
+          // Y-axis arrow (green)
+          0.0, 0.0, 0.0,  0.0, 1.0, 0.0,
+          0.0, 1.0, 0.0,  0.1, 0.9, 0.0,
+          0.0, 1.0, 0.0,  -0.1, 0.9, 0.0,
+          // Z-axis arrow (blue)
+          0.0, 0.0, 0.0,  0.0, 0.0, 1.0,
+          0.0, 0.0, 1.0,  0.0, 0.1, 0.9,
+          0.0, 0.0, 1.0,  0.0, -0.1, 0.9,
+        ]);
+        const arrowBuffer = device.createBuffer({
+          label: "Arrow buffer",
+          size: arrowVertices.byteLength,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+        });
+        device.queue.writeBuffer(arrowBuffer, 0, arrowVertices);
+        /*const arrowBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);*/
+
+        //gl.bufferData(gl.ARRAY_BUFFER, arrowVertices, gl.STATIC_DRAW);
         this.arrowVertices = arrowVertices;
         
         const createRingVertices = (radius, segments, plane) => {
@@ -118,7 +208,29 @@ export class AngleControllerRenderer{
         const ringVerticesYZ = createRingVertices(1.0, 36, 'YZ');
         const ringVerticesXZ = createRingVertices(1.0, 36, 'XZ');
 
-        const ringBufferXY = gl.createBuffer();
+        const ringBufferXY = device.createBuffer({
+          label: "ring XY buffer",
+          size: ringVerticesXY.byteLength,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+        });
+        device.queue.writeBuffer(ringBufferXY, 0, ringVerticesXY);
+
+        const ringBufferYZ = device.createBuffer({
+          label: "ring YZ buffer",
+          size: ringVerticesYZ.byteLength,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+        });
+        device.queue.writeBuffer(ringBufferYZ, 0, ringVerticesYZ);
+
+        const ringBufferXZ = device.createBuffer({
+          label: "ring XZ buffer",
+          size: ringVerticesXZ.byteLength,
+          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+        });
+        device.queue.writeBuffer(ringBufferXZ, 0, ringVerticesXZ);
+
+
+       /* const ringBufferXY = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, ringBufferXY);
         gl.bufferData(gl.ARRAY_BUFFER, ringVerticesXY, gl.STATIC_DRAW);
 
@@ -128,7 +240,7 @@ export class AngleControllerRenderer{
 
         const ringBufferXZ = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, ringBufferXZ);
-        gl.bufferData(gl.ARRAY_BUFFER, ringVerticesXZ, gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, ringVerticesXZ, gl.STATIC_DRAW);*/
 
         this.ringVerticesXY = ringVerticesXY;
         this.ringVerticesYZ = ringVerticesYZ;
@@ -142,12 +254,29 @@ export class AngleControllerRenderer{
             };
     }
 
-    render(gl, joint_location) {
+    render(device, pass, canvas) {
+        console.log("Rendering angle controllers.");
         const { arrowBuffer, ringBufferXY, ringBufferYZ, ringBufferXZ } = this.controller;
-        let cameraMatrix = getCameraMatrix(gl);
+        let cameraMatrix = getCameraMatrix(canvas);
 
         // Arrow Rendering
-        gl.useProgram(this.arrowProgram);
+        pass.setPipeline(this.arrowProgram);
+        pass.setVertexBuffer(0, arrowBuffer);
+        pass.setBindGroup(this.arrowBindGroup);
+        pass.draw(3);
+        
+        // Ring rendering
+        pass.setPipeline(this.ringPipeline); 
+        pass.setBindGroup(this.arrowBindGroup);
+
+        pass.setVertexBuffer(0, ringBufferXY);
+        pass.draw(3);
+        pass.setVertexBuffer(0, ringBufferYZ);
+        pass.draw(3);
+        pass.setVertexBuffer(0, ringBufferXZ);
+        pass.draw(3);
+        // Arrow Rendering
+        /*gl.useProgram(this.arrowProgram);
         gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);
         const positionLocation = gl.getAttribLocation(this.arrowProgram, 'a_position');
         gl.enableVertexAttribArray(positionLocation);
@@ -203,7 +332,7 @@ export class AngleControllerRenderer{
         // Render XZ ring
         gl.bindBuffer(gl.ARRAY_BUFFER, ringBufferXZ);
         gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
-        gl.drawArrays(gl.LINE_LOOP, 0, this.ringVerticesXZ.length / 3);
+        gl.drawArrays(gl.LINE_LOOP, 0, this.ringVerticesXZ.length / 3); */
         
       }
 

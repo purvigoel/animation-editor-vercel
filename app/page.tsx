@@ -20,7 +20,7 @@ import {KeyframeWidget} from "./lib/keyframe_widget.js";
 import {InterpolationWidget} from "./lib/interpolation_widget.js";
 import {loadGLTF, gltf_fragmentShaderSource, gltf_vertexShaderSource, renderScene} from "./lib/scenegraph/gltf_reader.js";
 import {m4} from "./lib/m4.js";
-import {camera, getViewProjectionMatrix, adjustCamera} from "./lib/camera.js";
+import {camera, initCamera, setCameraMatrix, getViewProjectionMatrix, adjustCamera} from "./lib/camera.js";
 //import * as webglUtils from 'webgl-utils.js';
 
 
@@ -112,21 +112,51 @@ export default function Home() {
         device: device,
         format: navigator.gpu.getPreferredCanvasFormat(),
       });
-      
+
+      var depthTexture = device.createTexture({
+        size: [canvas.width, canvas.height],
+        format: "depth24plus",
+        usage: GPUTextureUsage.RENDER_ATTACHMENT
+      });
+
+      var shadowDepthTexture = device.createTexture({
+        size: [canvas.width, canvas.height],
+        format: "depth32float",
+        usage: GPUTextureUsage.RENDER_ATTACHMENT
+      });
+
       const resizeCanvas = () => {
         if (canvas) {
           canvas.width = canvas.clientWidth;
           canvas.height = canvas.clientHeight;
+          depthTexture.destroy();
+          depthTexture = device.createTexture({
+            size: [canvas.width, canvas.height],
+            format: "depth24plus",
+            usage: GPUTextureUsage.RENDER_ATTACHMENT
+          });
+
+          shadowDepthTexture.destroy();
+          shadowDepthTexture = device.createTexture({
+            size: [canvas.width, canvas.height],
+            format: "depth32float",
+            usage: GPUTextureUsage.RENDER_ATTACHMENT
+          });
+    
         }
       };
       
       resizeCanvas(); // Initial resize
       window.addEventListener('resize', resizeCanvas); 
 
-      /*
+
+      const initializeCamera = () => {
+        initCamera(device);
+      }
+      
       const initializeActor = async () => {
         console.log("initializing actor");
-        actor = new Actor(tot_frames, gl);
+        actor = new Actor(tot_frames, device);
         await actor.init();
         if(actor.skeletonRenderer){
           clickables.push(... actor.skeletonRenderer.getClickables());
@@ -134,8 +164,8 @@ export default function Home() {
         }
 
       };
-      */
-
+      
+      
 
       const initializeFloor = () => {
         floorRenderer = new FloorRenderer(device);
@@ -232,21 +262,52 @@ export default function Home() {
         }
 
         params["draw_once"] = false;
+        setCurrentFrame(globalTimeline.curr_time);
         const encoder = device.createCommandEncoder();
+
+        // Render pass for shadows
+        const shadowPass = encoder.beginRenderPass ({
+          colorAttachments: [],
+          depthStencilAttachment: {
+            view: shadowDepthTexture.createView(),
+            depthClearValue: 1.0,
+            depthLoadOp: 'clear',
+            depthStoreOp: 'store'
+          }
+
+        });
+
+        shadowPass.end();
+
+        // Actual render pass for objects.
         const pass = encoder.beginRenderPass({
           colorAttachments: [{
             view: context.getCurrentTexture().createView(),
             loadOp: "clear",
-            clearValue: [0.1, 0.1, 0.1, 1.0],
+            clearValue: [0.8, 0.8, 0.8, 1.0],
             storeOp: "store",
-          }]
+          }],
+            depthStencilAttachment: {
+              view: depthTexture.createView(),
+              depthClearValue: 1.0,
+              depthLoadOp: "clear",
+              depthStoreOp: "store",
+          },
         });
 
+        
+        setCameraMatrix (device, canvas);
         if (floorRenderer) {
-          console.log ("rendering floor");
-          pass.setPipeline(floorRenderer.pipeline);
-          pass.setVertexBuffer(0, floorRenderer.positionBuffer);
-          pass.draw(4);
+          //console.log ("rendering floor");
+          floorRenderer.render(device, pass);
+        }
+
+        if (actor && actor.actorRenderer && actor.skeletonRenderer) {
+          let to_skin = actor.get_skel_at_time( globalTimeline.curr_time);
+          var A_matrix = new Float32Array(to_skin.flat());
+          
+          actor.actorRenderer.render(device, pass, canvas, A_matrix);
+          actor.skeletonRenderer.render (device, pass, canvas, globalTimeline.curr_time);
         }
 
         
@@ -292,13 +353,14 @@ export default function Home() {
       }
 
       if(!draw_gltf){
-        // initializeActor();
+        initializeCamera();
+        initializeActor();
         console.log("Initializing floor");
         initializeFloor();
 
       }
-      //addAllEvents(gl, canvas, renderLoop, params);
-      //addMouseEvents(canvas, clickables, renderLoop, gl, params);
+      addAllEvents(canvas, renderLoop, params);
+      addMouseEvents(canvas, clickables, renderLoop, params);
       
       requestAnimationFrame(renderLoop);
 

@@ -1,5 +1,5 @@
-import { data } from "@tensorflow/tfjs-node";
-import {setCameraMatrix} from "./camera.js";
+//import { data } from "@tensorflow/tfjs-node";
+import {cameraBuffer, setCameraMatrix} from "./camera.js";
 function isPowerOf2(value) {
     return (value & (value - 1)) === 0;
 }
@@ -13,10 +13,12 @@ export class FloorRenderer {
         this.texture = null;
 
         this.pipeline = null;
+        this.bindGroup = null;
 
         //this.initialize_texture(gl);
         this.initialize_shader_program(device);
         this.initialize_buffers(device);
+        console.log("floor constructed");
     }
 
 
@@ -129,36 +131,69 @@ export class FloorRenderer {
         const floorShaderModule = device.createShaderModule ({
             label: "Floor Shader",
             code: `
+                struct Uniforms {
+                    u_matrix : mat4x4f,
+                }
+
+                struct VertexOutput {
+                    @builtin(position) Position : vec4f,
+                    @location(0) vNormal : vec3f,
+                    @location(1) vPosition : vec3f
+                }
+
+                @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
                 @vertex
-                fn vertexMain(@location(0) pos: vec3f) ->
-                    @builtin(position) vec4f {
-                    return vec4f(pos, 1);
+                fn vertexMain(@location(0) pos: vec3f,
+                              @location(1) normal : vec3f) -> VertexOutput {
+                    var output : VertexOutput;
+                    output.Position = u_matrix * vec4f (pos, 1);
+                    output.vNormal = normal;
+                    output.vPosition = pos;
+
+                    return output;
                 }
 
                 @fragment
-                fn fragmentMain() -> @location(0) vec4f {
-                    return vec4f(1, 1, 0, 1);
+                fn fragmentMain(in : VertexOutput) -> @location(0) vec4f {
+                    var vLightPosition : vec3f = vec3f(0, 1.5, 0);
+                    var norm : vec3f = normalize (in.vNormal);
+                    var lightDir : vec3f = normalize (vLightPosition - in.vPosition);
+
+                    var diff : f32 = max (dot (norm, lightDir), 0.0);
+                    var diffuse : vec4f = diff * vec4f (0.8, 0.8, 0.8, 0.0);
+                    var ambient : vec4f = vec4f (1, 1, 0, 1);
+                    return ambient + diffuse;
                 }
             `
 
         });
-
-        const positionBuffer_layout = {
-            arrayStride: 12,
-            attributes: [{
-              format: "float32x3",
-              offset: 0,
-              shaderLocation: 0, // Position, see vertex shader
-            }],
-        };
-
         this.pipeline = device.createRenderPipeline ({
             label: "Floor pipeline",
             layout: "auto",
             vertex: {
                 module: floorShaderModule,
                 entryPoint: "vertexMain",
-                buffers: [positionBuffer_layout]
+                buffers: [
+                    // position buffer
+                    {
+                        arrayStride: 3 * 4,
+                        attributes: [{
+                          format: "float32x3",
+                          offset: 0,
+                          shaderLocation: 0, // Position, see vertex shader
+                        }],
+                    },
+                    // normal buffer
+                    {
+                        arrayStride: 3 * 4,
+                        attributes: [{
+                          format: "float32x3",
+                          offset: 0,
+                          shaderLocation: 1, // Position, see vertex shader
+                        }],
+                    }
+
+                ]
             },
             fragment: {
                 module: floorShaderModule,
@@ -166,6 +201,14 @@ export class FloorRenderer {
                 targets: [{
                     format: navigator.gpu.getPreferredCanvasFormat()
                 }]
+            },
+            primitive: {
+                topology: 'triangle-strip'
+            },
+            depthStencil: {
+                depthWriteEnabled: true,
+                depthCompare: "less",
+                format: "depth24plus"
             }
         });
 
@@ -196,11 +239,17 @@ export class FloorRenderer {
     }*/
 
     initialize_buffers(device) {
-        const positions = new Float32Array([
+        /*const positions = new Float32Array([
             -100, -0.1, -0.1,
              100, -0.1, -0.1,
             -100, -0.1,  0.1,
              100, -0.1,  0.1,
+        ]);*/
+        const positions = new Float32Array([
+            -2, -1.1, -2,
+            2, -1.1, -2,
+            -2, -1.1, 2,
+            2, -1.1, 2
         ]);
 
         const normals = new Float32Array([
@@ -226,27 +275,25 @@ export class FloorRenderer {
             label: "Floor vertices",
             size: positions.byteLength,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-          });
-        /*new data.constructor(this.positionBuffer.getMappedRange()).set(positions);
-        this.positionBuffer.unmap();*/
+        });
 
-        this.normalBuffer = device.createBuffer({
+       this.normalBuffer = device.createBuffer({
             label: "Floor normals",
             size: normals.byteLength,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
         });
 
-        this.texCoordBuffer = device.createBuffer({
+        /*this.texCoordBuffer = device.createBuffer({
             label: "Floor texture coordinates",
             size: texCoords.byteLength,
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-        });
+        });*/
 
         
         // write data into GPUBuffers
         device.queue.writeBuffer (this.positionBuffer, 0, positions);
         device.queue.writeBuffer (this.normalBuffer, 0, normals);
-        device.queue.writeBuffer (this.texCoordBuffer, 0, texCoords);
+        //device.queue.writeBuffer (this.texCoordBuffer, 0, texCoords);*/
 
         /*this.texture = this.load_textures(gl);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -262,9 +309,25 @@ export class FloorRenderer {
         this.texCoordsBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.texCoordsBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, texCoords, gl.STATIC_DRAW);*/
+
+        this.bindGroup = device.createBindGroup({
+            layout: this.pipeline.getBindGroupLayout(0),
+            entries: [{
+                binding: 0,
+                resource: {buffer: cameraBuffer}
+            }]
+        }
+
+        );
     }
 
-    render(gl) {
+    render(device, pass) {
+        // setCameraMatrix(device, canvas, this.cameraBuffer);
+        pass.setPipeline(this.pipeline);
+        pass.setVertexBuffer(0, this.positionBuffer);
+        pass.setVertexBuffer(1, this.normalBuffer);
+        pass.setBindGroup(0, this.bindGroup);
+        pass.draw(4);
         /*gl.useProgram(this.program);
 
         const positionLocation = gl.getAttribLocation(this.program, 'a_position2');

@@ -2,12 +2,12 @@ import { vec3, vec4 } from 'gl-matrix';
 import { AngleControllerWidget } from './angle_controller_widget';
 
 export class Clickable {
-    constructor(origin, radius, gl, id) {
+    constructor(origin, radius, id, device) {
         this.origin = vec3.fromValues(origin[0], origin[1], origin[2]);
         this.radius = radius;
         this.isHovered = false;
         this.isClicked = false;
-        this.angleController = new AngleControllerWidget(this.origin, gl);
+        this.angleController = new AngleControllerWidget(this.origin, device);
         this.id = id;
     }
 
@@ -22,7 +22,7 @@ export class Clickable {
     }
 
     onClick() {
-        //this.angleController.render = True;
+        this.angleController.show = true;
     }
 }
 
