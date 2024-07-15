@@ -151,6 +151,9 @@ export class SkeletonRenderer {
                 depthWriteEnabled: false,
                 depthCompare: "always",
                 format: "depth24plus"
+            },
+            multisample: {
+                count: 4,
             }
         });
 
@@ -183,6 +186,9 @@ export class SkeletonRenderer {
                 depthWriteEnabled: false,
                 depthCompare: "always",
                 format: "depth24plus"
+            },
+            multisample: {
+                count: 4,
             }
         });
     }

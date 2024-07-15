@@ -1,5 +1,6 @@
 //import { data } from "@tensorflow/tfjs-node";
 import {cameraBuffer, setCameraMatrix} from "./camera.js";
+import {lightBuffer, shadowBindGroupLayout} from "./light.js";
 function isPowerOf2(value) {
     return (value & (value - 1)) === 0;
 }
@@ -16,6 +17,7 @@ export class FloorRenderer {
         this.bindGroup = null;
 
         //this.initialize_texture(gl);
+        this.load_textures(device);
         this.initialize_shader_program(device);
         this.initialize_buffers(device);
         console.log("floor constructed");
@@ -25,7 +27,34 @@ export class FloorRenderer {
     /*
         https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
     */
-    load_textures(gl) {
+    load_textures(device) {
+
+        const y = [50, 50, 0, 255];
+        const w = [255, 255, 255, 255];
+        const textureData = new Uint8Array([
+            y, w, y, w,
+            w, y, w, y,
+            y, w, y, w,
+            w, y, w, y
+        ].flat());
+        this.texture = device.createTexture({
+            size: [4, 4],
+            format: "rgba8unorm",
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+        });
+
+        device.queue.writeTexture (
+            {texture: this.texture},
+            textureData,
+            {bytesPerRow: 4 * 4},
+            {width: 4, height: 4}
+        );
+
+        this.sampler = device.createSampler({
+            addressModeU : 'repeat',
+            addressModeV : 'repeat'
+    }); 
+
         /* const texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
 
@@ -83,50 +112,20 @@ export class FloorRenderer {
     }
     
     initialize_shader_program(device) {
-        /* const vertexShaderSource = `
-            attribute vec3 a_position2;
-            attribute vec2 a_texCoord;
-            attribute vec3 a_normal;
-            uniform mat4 u_matrix;
 
-            varying vec3 vNormal;
-            varying vec3 vPosition;
-            varying highp vec2 vTexCoord;
+        const floorShadowDepthModule = device.createShaderModule ({
+            label: "Floor shadow depth test shader",
+            code: `
+                @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
+                @group(0) @binding(1) var<uniform> lightMatrix : mat4x4f;
 
-            void main() {
-                vNormal = a_normal;
-                vPosition = (u_matrix * vec4(a_position2, 1.0)).xyz;
-                gl_Position = u_matrix * vec4(a_position2, 1.0);
+                @vertex
+                fn vertexMain (@location(0) pos : vec3f) -> @builtin(position) vec4f {
+                    return lightMatrix * vec4f(pos, 1);
+                }
+            `
 
-                vTexCoord = a_texCoord;
-            }
-        `;
-
-        const fragmentShaderSource = `
-            precision mediump float;
-            varying vec3 vNormal;
-            varying vec3 vPosition;
-            varying highp vec2 vTexCoord;
-            uniform sampler2D u_sampler;
-
-            void main() {
-                vec3 vLightPosition = vec3(0.0, 3.0, 0.0);
-        
-                vec3 norm = normalize(vNormal);
-                vec3 lightDir = normalize(vLightPosition - vPosition);
-
-                float diff = max(dot(norm, lightDir), 0.0);
-                vec4 diffuse = diff * vec4(0.8, 0.8, 0.8, 0.0);
-                // vec3 ambient = vec3(0.2, 0.2, 0.2);
-                vec4 ambient = texture2D (u_sampler, vTexCoord);
-                gl_FragColor = ambient + diffuse;
-                //gl_FragColor = texture2D (u_sampler, vTexCoord);
-            }
-        `;
-
-        const vertexShader = this.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-        const fragmentShader = this.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-        this.program = this.createProgram(gl, vertexShader, fragmentShader); */
+        });
 
         const floorShaderModule = device.createShaderModule ({
             label: "Floor Shader",
@@ -138,38 +137,140 @@ export class FloorRenderer {
                 struct VertexOutput {
                     @builtin(position) Position : vec4f,
                     @location(0) vNormal : vec3f,
-                    @location(1) vPosition : vec3f
+                    @location(1) vPosition : vec3f,
+                    @location(2) shadowPos : vec3f,
+                    @location(3) texCoords : vec2f
                 }
 
                 @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
+                @group(0) @binding(1) var<uniform> light_matrix : mat4x4f;
                 @vertex
                 fn vertexMain(@location(0) pos: vec3f,
-                              @location(1) normal : vec3f) -> VertexOutput {
+                              @location(1) normal : vec3f,
+                              @location(2) texCoords : vec2f) -> VertexOutput {
                     var output : VertexOutput;
+                    let lightPos = light_matrix * vec4f(pos, 1);
+                    // Convert to texture coordinates for tex sampling in frag shader
+                    output.shadowPos = vec3 (
+                        lightPos.xy/lightPos.w * vec2(0.5, -0.5) + vec2(0.5),
+                        lightPos.z/lightPos.w
+                    );
                     output.Position = u_matrix * vec4f (pos, 1);
                     output.vNormal = normal;
                     output.vPosition = pos;
+                    output.texCoords = texCoords;
 
                     return output;
                 }
+                @group(0) @binding(2) var thisSampler : sampler;
+                @group(0) @binding(3) var texture : texture_2d<f32>;
 
+                 @group(1) @binding(0) var shadowMap: texture_depth_2d;
+                 @group(1) @binding(1) var shadowSampler: sampler_comparison;
                 @fragment
                 fn fragmentMain(in : VertexOutput) -> @location(0) vec4f {
-                    var vLightPosition : vec3f = vec3f(0, 1.5, 0);
+                    var vLightPosition : vec3f = vec3f(0.001, 4, 0.001);
                     var norm : vec3f = normalize (in.vNormal);
                     var lightDir : vec3f = normalize (vLightPosition - in.vPosition);
 
+                    var oneOverS = 1/4096.;
+                    //return vec4(vec3f(textureSample(shadowMap, shadowSampler, shadowPos.xy)), 1);
+                    // Shadow
+                    
+                    var visibility = 0.0;
+                    for (var i = -2; i <= 2; i++) {
+                        for (var j = -2; j <= 2; j++) {
+                            var offset : vec2f = vec2f(f32(i), f32(j)) * oneOverS;
+                            visibility += textureSampleCompare(shadowMap, shadowSampler, in.shadowPos.xy + offset, in.shadowPos.z - .007);
+                        }
+                    }
+                    visibility /= 25;
+
+                    /*if (visibility >= 0.75) {
+                        visibility = 1;
+                    } else if (visibility >= 0.5) {
+                        visibility = 0.5;
+                    } else if (visibility >= 0.25) {
+                        visibility = 0.25;
+                    } else {
+                        visibility = 0.0;
+                    }*/
                     var diff : f32 = max (dot (norm, lightDir), 0.0);
-                    var diffuse : vec4f = diff * vec4f (0.8, 0.8, 0.8, 0.0);
-                    var ambient : vec4f = vec4f (1, 1, 0, 1);
-                    return ambient + diffuse;
+                    // var diffuse : vec4f = diff * vec4f(0.5, 0.5, 0, 1);
+                    var diffuse : vec4f = diff * textureSample (texture, thisSampler, in.texCoords);
+                    // return vec4f(in.texCoords, 0, 1);
+                    var ambient : vec4f = vec4f (0.2, 0.2, 0.2, 0.0);
+                    // var ambient = vec4f(0);
+                    return visibility * (ambient + diffuse);
                 }
             `
 
         });
+        var bindGroupLayout = device.createBindGroupLayout ({
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: {
+                        type: 'uniform',
+                    },
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: {
+                        type: 'uniform',
+                    },
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    sampler: {}
+
+                },                {
+                    binding: 3,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {}
+                }       
+            ]
+        });
+
+        this.shadowPipeline = device.createRenderPipeline({
+            label: "Shadow pipeline (floor)",
+            layout: device.createPipelineLayout ({
+                bindGroupLayouts: [
+                    bindGroupLayout
+                ]
+            }),
+            vertex: {
+                module: floorShadowDepthModule,
+                buffers: [
+                    // position buffer
+                    {
+                        arrayStride: 3 * 4,
+                        attributes: [{
+                          format: "float32x3",
+                          offset: 0,
+                          shaderLocation: 0, // Position, see vertex shader
+                        }],
+                    }
+                ],
+            },
+            depthStencil: {
+                depthWriteEnabled: true,
+                depthCompare: 'less',
+                format: 'depth32float',
+              }
+        });
+
         this.pipeline = device.createRenderPipeline ({
             label: "Floor pipeline",
-            layout: "auto",
+            layout: device.createPipelineLayout ({
+                bindGroupLayouts: [
+                    bindGroupLayout,
+                    shadowBindGroupLayout
+                ]
+            }),
             vertex: {
                 module: floorShaderModule,
                 entryPoint: "vertexMain",
@@ -191,6 +292,15 @@ export class FloorRenderer {
                           offset: 0,
                           shaderLocation: 1, // Position, see vertex shader
                         }],
+                    },
+                    // Texture coordinates Buffer
+                    {
+                        arrayStride: 2 * 4,
+                        attributes: [{
+                          format: "float32x2",
+                          offset: 0,
+                          shaderLocation: 2, // Position, see vertex shader
+                        }],
                     }
 
                 ]
@@ -209,47 +319,19 @@ export class FloorRenderer {
                 depthWriteEnabled: true,
                 depthCompare: "less",
                 format: "depth24plus"
-            }
+            },
+            multisample: {
+                count: 4,
+            },
         });
 
     }
-
-    /*createShader(gl, type, source) {
-        const shader = gl.createShader(type);
-        gl.shaderSource(shader, source);
-        gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
-            gl.deleteShader(shader);
-            return null;
-        }
-        return shader;
-    }
-
-    createProgram(gl, vertexShader, fragmentShader) {
-        const program = gl.createProgram();
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
-        gl.linkProgram(program);
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(program));
-            return null;
-        }
-        return program;
-    }*/
-
     initialize_buffers(device) {
-        /*const positions = new Float32Array([
-            -100, -0.1, -0.1,
-             100, -0.1, -0.1,
-            -100, -0.1,  0.1,
-             100, -0.1,  0.1,
-        ]);*/
         const positions = new Float32Array([
-            -2, -1.1, -2,
-            2, -1.1, -2,
-            -2, -1.1, 2,
-            2, -1.1, 2
+            -2, -1.04, -2,
+            2, -1.04, -2,
+            -2, -1.04, 2,
+            2, -1.04, 2
         ]);
 
         const normals = new Float32Array([
@@ -283,6 +365,13 @@ export class FloorRenderer {
             usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
         });
 
+        this.texCoordsBuffer = device.createBuffer ({
+            label: "Floor tex coords",
+            size: texCoords.byteLength,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+
+        })
+
         /*this.texCoordBuffer = device.createBuffer({
             label: "Floor texture coordinates",
             size: texCoords.byteLength,
@@ -293,7 +382,7 @@ export class FloorRenderer {
         // write data into GPUBuffers
         device.queue.writeBuffer (this.positionBuffer, 0, positions);
         device.queue.writeBuffer (this.normalBuffer, 0, normals);
-        //device.queue.writeBuffer (this.texCoordBuffer, 0, texCoords);*/
+        device.queue.writeBuffer (this.texCoordsBuffer, 0, texCoords);
 
         /*this.texture = this.load_textures(gl);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
@@ -313,19 +402,36 @@ export class FloorRenderer {
         this.bindGroup = device.createBindGroup({
             layout: this.pipeline.getBindGroupLayout(0),
             entries: [{
-                binding: 0,
+                binding : 0,
                 resource: {buffer: cameraBuffer}
+            }, {
+                binding: 1,
+                resource: {buffer: lightBuffer}
+            }, {
+                binding: 2,
+                resource: this.sampler
+            }, {
+                binding: 3,
+                resource: this.texture.createView()
             }]
         }
 
         );
     }
 
-    render(device, pass) {
+    renderShadow(pass) {
+        pass.setPipeline(this.shadowPipeline);
+        pass.setVertexBuffer(0, this.positionBuffer);
+        pass.setBindGroup(0, this.bindGroup);
+        pass.draw(4);
+    }
+
+    render(pass) {
         // setCameraMatrix(device, canvas, this.cameraBuffer);
         pass.setPipeline(this.pipeline);
         pass.setVertexBuffer(0, this.positionBuffer);
         pass.setVertexBuffer(1, this.normalBuffer);
+        pass.setVertexBuffer(2, this.texCoordsBuffer);
         pass.setBindGroup(0, this.bindGroup);
         pass.draw(4);
         /*gl.useProgram(this.program);

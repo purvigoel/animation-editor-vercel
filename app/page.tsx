@@ -13,6 +13,7 @@ import { FloorRenderer } from "./lib/floor_renderer";
 // import {AngleControllerRenderer} from "./lib/angle_controller_renderer";
 import {angle_to_rotmat} from "./lib/angle_controller";
 // import { SkeletonRenderer } from "./lib/skeleton_renderer";
+import {shadowDepthTextureView, shadowBindGroup, initLight, setLightMatrix} from "./lib/light.js";
 import {addMouseEvents} from "./lib/mouse_handler.js";
 import {addAngleControl} from "./lib/angle_controller.js";
 import {KeyframeCreationWidget} from "./lib/keyframe_creation_widget.js";
@@ -22,7 +23,6 @@ import {loadGLTF, gltf_fragmentShaderSource, gltf_vertexShaderSource, renderScen
 import {m4} from "./lib/m4.js";
 import {camera, initCamera, setCameraMatrix, getViewProjectionMatrix, adjustCamera} from "./lib/camera.js";
 //import * as webglUtils from 'webgl-utils.js';
-
 
 export default function Home() {
 
@@ -116,33 +116,41 @@ export default function Home() {
       var depthTexture = device.createTexture({
         size: [canvas.width, canvas.height],
         format: "depth24plus",
-        usage: GPUTextureUsage.RENDER_ATTACHMENT
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        sampleCount: 4
       });
+      var depthTextureView = depthTexture.createView();
 
-      var shadowDepthTexture = device.createTexture({
+      var multisampleTexture = device.createTexture({
+        format: context.getCurrentTexture().format,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
         size: [canvas.width, canvas.height],
-        format: "depth32float",
-        usage: GPUTextureUsage.RENDER_ATTACHMENT
+        sampleCount: 4
       });
 
+      initLight(device, canvas);
+      
       const resizeCanvas = () => {
         if (canvas) {
           canvas.width = canvas.clientWidth;
           canvas.height = canvas.clientHeight;
           depthTexture.destroy();
           depthTexture = device.createTexture({
-            size: [canvas.width, canvas.height],
+            size: [canvas.width, canvas.height, 1],
             format: "depth24plus",
-            usage: GPUTextureUsage.RENDER_ATTACHMENT
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+            sampleCount: 4
           });
+          depthTextureView = depthTexture.createView();
 
-          shadowDepthTexture.destroy();
-          shadowDepthTexture = device.createTexture({
+          multisampleTexture.destroy();
+          multisampleTexture = device.createTexture({
+            format: context.getCurrentTexture().format,
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
             size: [canvas.width, canvas.height],
-            format: "depth32float",
-            usage: GPUTextureUsage.RENDER_ATTACHMENT
+            sampleCount: 4
           });
-    
+          setLightMatrix (device, canvas);
         }
       };
       
@@ -152,6 +160,7 @@ export default function Home() {
 
       const initializeCamera = () => {
         initCamera(device);
+        
       }
       
       const initializeActor = async () => {
@@ -263,13 +272,21 @@ export default function Home() {
 
         params["draw_once"] = false;
         setCurrentFrame(globalTimeline.curr_time);
+        setCameraMatrix (device, canvas);
+        if (actor && actor.actorRenderer) {
+          let to_skin = actor.get_skel_at_time( globalTimeline.curr_time);
+          var A_matrix = new Float32Array(to_skin.flat());
+          actor.actorRenderer.updateUniformArray (device, A_matrix);
+        }
+
+        let contextView = context.getCurrentTexture().createView()
         const encoder = device.createCommandEncoder();
 
         // Render pass for shadows
         const shadowPass = encoder.beginRenderPass ({
           colorAttachments: [],
           depthStencilAttachment: {
-            view: shadowDepthTexture.createView(),
+            view: shadowDepthTextureView,
             depthClearValue: 1.0,
             depthLoadOp: 'clear',
             depthStoreOp: 'store'
@@ -277,18 +294,27 @@ export default function Home() {
 
         });
 
+        if (floorRenderer && actor && actor.actorRenderer) {
+          console.log ("calculating shadow depths");
+          floorRenderer.renderShadow(shadowPass);
+          actor.actorRenderer.renderShadow(shadowPass);
+        }
+
         shadowPass.end();
 
+        
+        
         // Actual render pass for objects.
         const pass = encoder.beginRenderPass({
           colorAttachments: [{
-            view: context.getCurrentTexture().createView(),
+            view: multisampleTexture.createView(),
+            resolveTarget: contextView,
             loadOp: "clear",
-            clearValue: [0.8, 0.8, 0.8, 1.0],
+            clearValue: [1, 1, 1, 1.0],
             storeOp: "store",
           }],
             depthStencilAttachment: {
-              view: depthTexture.createView(),
+              view: depthTextureView,
               depthClearValue: 1.0,
               depthLoadOp: "clear",
               depthStoreOp: "store",
@@ -296,22 +322,19 @@ export default function Home() {
         });
 
         
-        setCameraMatrix (device, canvas);
+        pass.setBindGroup(1, shadowBindGroup);
         if (floorRenderer) {
           //console.log ("rendering floor");
-          floorRenderer.render(device, pass);
+          floorRenderer.render(pass);
         }
 
         if (actor && actor.actorRenderer && actor.skeletonRenderer) {
-          let to_skin = actor.get_skel_at_time( globalTimeline.curr_time);
-          var A_matrix = new Float32Array(to_skin.flat());
-          
-          actor.actorRenderer.render(device, pass, canvas, A_matrix);
+          actor.actorRenderer.render(pass);
           actor.skeletonRenderer.render (device, pass, canvas, globalTimeline.curr_time);
         }
 
         
-        pass.end();
+        pass.end(); 
         // Finish the command buffer and immediately submit it.
         device.queue.submit([encoder.finish()]);
 

@@ -8,8 +8,8 @@ export const m4 = {
         return [
             f / aspect, 0, 0, 0,
             0, f, 0, 0,
-            0, 0, (near + far) * rangeInv, -1,
-            0, 0, near * far * rangeInv * 2, 0
+            0, 0, near * rangeInv, -1,
+            0, 0, near * far * rangeInv, 0
         ];
     },
     normalize: function(v) {

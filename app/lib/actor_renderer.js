@@ -1,5 +1,9 @@
 import {camera, cameraBuffer, setCameraMatrix} from "./camera.js";
+import {lightBuffer, shadowDepthTextureView} from "./light.js";
 import {createAllShaders} from "./shaders.js";
+import {createShadowPipeline} from "./shadow_shader.js";
+
+export let bindGroupLayout;
 
 export class ActorRenderer{
     constructor(device, body){ 
@@ -22,7 +26,9 @@ export class ActorRenderer{
         this.normalLocation = null;
 
         this.pipeline = null;
-        this.cameraBuffer = null;
+        this.shadowPipeline = null;
+
+        this.bindGroupLayout = null;
         this.bindGroup = null;
 
         this.initialize_shader_pipeline(device);
@@ -30,40 +36,37 @@ export class ActorRenderer{
     }
 
     initialize_shader_pipeline(device){
+        bindGroupLayout = device.createBindGroupLayout ({
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: {
+                        type: 'uniform',
+                    },
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: {
+                        type: 'uniform',
+                    },
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: {
+                        type: 'uniform',
+                    },
+                },            
+            ]
+        });
+
         this.pipeline = createAllShaders(device);
+        this.shadowPipeline = createShadowPipeline(device);
     }
 
     initialize_buffers(device){
-        /*this.positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-        const positionLocation = gl.getAttribLocation(this.program, 'a_position');
-        gl.enableVertexAttribArray(positionLocation);
-        gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
-        this.positionLocation = positionLocation;
-
-        this.boneIndexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.boneIndexBuffer);
-        const boneIndexLocation = gl.getAttribLocation(this.program, 'a_JOINTS');
-        gl.enableVertexAttribArray(boneIndexLocation);
-        gl.vertexAttribPointer(boneIndexLocation, 4, gl.FLOAT, false, 0, 0);
-        this.boneIndexLocation = boneIndexLocation;
-
-        this.boneWeightBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.boneWeightBuffer);
-        const boneWeightLocation = gl.getAttribLocation(this.program, 'a_WEIGHTS');
-        gl.enableVertexAttribArray(boneWeightLocation);
-        gl.vertexAttribPointer(boneWeightLocation, 4, gl.FLOAT, false, 0, 0);
-        this.boneWeightLocation = boneWeightLocation;
-
-        this.normalBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
-        const normalLocation = gl.getAttribLocation(this.program, 'a_normal');
-        gl.enableVertexAttribArray(normalLocation);
-        gl.vertexAttribPointer(normalLocation, 3, gl.FLOAT, false, 0, 0);
-        this.normalLocation = normalLocation;
-       
-        this.lineIndexBuffer = gl.createBuffer();
-        this.uniformArrayLocation = gl.getUniformLocation(this.program, 'u_uniformArray');*/
 
         this.positionBuffer = device.createBuffer({
             label: "Actor positions",
@@ -105,11 +108,6 @@ export class ActorRenderer{
 
         device.queue.writeBuffer (this.lineIndexBuffer, 0, this.faceInds);
 
-        this.cameraBuffer = device.createBuffer ({
-            label: "uniform camera buffer",
-            size: ( 4 * 4 ) * 4,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        });
         this.uniformArrayLocation = device.createBuffer({
             label : "Uniform Array Buffer",
             size : 384 * 4,
@@ -123,52 +121,32 @@ export class ActorRenderer{
                 resource: {buffer: cameraBuffer}
             }, {
                 binding: 1,
+                resource: {buffer: lightBuffer}
+            }, {
+                binding: 2,
                 resource: {buffer: this.uniformArrayLocation}
             }]
         })
 
-
     }
 
-    /*load_buffers(gl, A_matrix){
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-        gl.enableVertexAttribArray(this.positionLocation);
-        gl.vertexAttribPointer(this.positionLocation, 3, gl.FLOAT, false, 0, 0);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.positions), gl.STATIC_DRAW);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.boneIndexBuffer);
-        gl.enableVertexAttribArray(this.boneIndexLocation);
-        gl.vertexAttribPointer(this.boneIndexLocation, 4, gl.FLOAT, false, 0, 0);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.boneInds), gl.STATIC_DRAW);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.boneWeightBuffer);
-        gl.enableVertexAttribArray(this.boneWeightLocation);
-        gl.vertexAttribPointer(this.boneWeightLocation, 4, gl.FLOAT, false, 0, 0);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.boneWeights), gl.STATIC_DRAW);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.normalBuffer);
-        gl.enableVertexAttribArray(this.normalLocation);
-        gl.vertexAttribPointer(this.normalLocation, 3, gl.FLOAT, false, 0, 0);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.normals), gl.STATIC_DRAW);
-
-        gl.uniform1fv(this.uniformArrayLocation, A_matrix);
-    }*/
-    
-    drawTris(gl){
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.lineIndexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.faceInds, gl.STATIC_DRAW);
-
-        gl.drawElements(gl.TRIANGLES, this.faceInds.length, gl.UNSIGNED_SHORT, 0);
+    renderShadow(pass) {
+        pass.setPipeline(this.shadowPipeline);
+        pass.setVertexBuffer(0, this.positionBuffer);
+        pass.setVertexBuffer(1, this.boneIndexBuffer);
+        pass.setVertexBuffer(2, this.boneWeightBuffer);
+        pass.setVertexBuffer(3, this.normalBuffer);
+        pass.setIndexBuffer (this.lineIndexBuffer, "uint16");
+        pass.setBindGroup(0, this.bindGroup);
+        pass.drawIndexed(this.faceInds.length);
     }
 
-    render(device, pass, canvas, A_matrix){
+    render(pass){
         // Data structure: SceneGraph tree (depth first traversal of tree, convert local->global transform, 
         // draw when you find a drawable mesh geom)
         // console.log("Rendering actor.");
-        //setCameraMatrix(device, canvas, this.cameraBuffer);
 
         //this.load_buffers(gl, A_matrix); // TODO: dont copy these every time, only copy A_matrix
-        device.queue.writeBuffer (this.uniformArrayLocation, 0, A_matrix);
         pass.setPipeline(this.pipeline);
         pass.setVertexBuffer(0, this.positionBuffer);
         pass.setVertexBuffer(1, this.boneIndexBuffer);
@@ -178,5 +156,9 @@ export class ActorRenderer{
         pass.setBindGroup(0, this.bindGroup);
         pass.drawIndexed(this.faceInds.length);
 
+    }
+
+    updateUniformArray (device, A_matrix) {
+        device.queue.writeBuffer (this.uniformArrayLocation, 0, A_matrix);
     }
 }

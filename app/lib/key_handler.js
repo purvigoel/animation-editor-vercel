@@ -4,6 +4,7 @@ import {addMouseEvents} from "./mouse_handler.js";
 function handleScroll(event, render) {
     camera.radius += event.deltaY * 0.01;
     camera.radius = Math.max(0.1, camera.radius);
+    camera.radius = Math.min(camera.radius, 3);
     render();
 }
 
