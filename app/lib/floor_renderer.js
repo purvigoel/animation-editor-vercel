@@ -155,6 +155,7 @@ export class FloorRenderer {
                         lightPos.xy/lightPos.w * vec2(0.5, -0.5) + vec2(0.5),
                         lightPos.z/lightPos.w
                     );
+                    
                     output.Position = u_matrix * vec4f (pos, 1);
                     output.vNormal = normal;
                     output.vPosition = pos;
@@ -169,7 +170,7 @@ export class FloorRenderer {
                  @group(1) @binding(1) var shadowSampler: sampler_comparison;
                 @fragment
                 fn fragmentMain(in : VertexOutput) -> @location(0) vec4f {
-                    var vLightPosition : vec3f = vec3f(0.001, 4, 0.001);
+                    var vLightPosition : vec3f = vec3f(1, 4, 1);
                     var norm : vec3f = normalize (in.vNormal);
                     var lightDir : vec3f = normalize (vLightPosition - in.vPosition);
 
@@ -195,6 +196,7 @@ export class FloorRenderer {
                     } else {
                         visibility = 0.0;
                     }*/
+                    
                     var diff : f32 = max (dot (norm, lightDir), 0.0);
                     // var diffuse : vec4f = diff * vec4f(0.5, 0.5, 0, 1);
                     var diffuse : vec4f = diff * textureSample (texture, thisSampler, in.texCoords);

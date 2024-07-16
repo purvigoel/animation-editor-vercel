@@ -12,6 +12,7 @@ const vertexShaderSource = `
     @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
     @group(0) @binding(1) var<uniform> light_matrix : mat4x4f;
     @group(0) @binding(2) var<uniform> u_uniformArray : array<vec4f, 384/4>;
+    @group(0) @binding(3) var<uniform> u_transArray : array<vec4f, 1>;
 
     fn getBoneMatrix (jointNdx : i32) -> mat4x4f {
         var v : i32 = jointNdx * 4 ;
@@ -51,7 +52,7 @@ const vertexShaderSource = `
         //var temp : mat4x4f = u_matrix * skinMatrix;
         var temp : mat4x4f = skinMatrix;
         output.vNormal = mat3x3f (temp[0].xyz, temp[1].xyz, temp[2].xyz) * a_normal;
-        output.vPosition = (u_matrix * skinPosition);
+        output.vPosition = u_matrix * (skinPosition + vec4(u_transArray[0].x, u_transArray[0].y, u_transArray[0].z, 0.0)) ;
         output.fragPos = skinPosition.xyz;
         //output.fragPos = output.vPosition.xyz;
         return output;
@@ -77,7 +78,7 @@ const fragmentShaderSource = `
                      @location(2) shadowPos : vec3f) -> @location(0) vec4f {
         //return vec4f(vec3f(vPosition.z), 1);
         var uLightColor : vec3f = vec3f(1.0, 1.0, 1.0);
-        var vLightPosition : vec3f = vec3f(0.001, 4, 0.001);
+        var vLightPosition : vec3f = vec3f(1, 4, 1);
         var uObjectColor : vec3f = vec3f(0.89, 0.47, 0.44);
 
         var ambientStrength : f32 = 0.2;
