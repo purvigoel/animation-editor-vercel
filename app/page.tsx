@@ -355,9 +355,9 @@ export default function Home() {
           colorAttachments: [{
             view: multisampleTexture.createView(),
             resolveTarget: contextView,
-            loadOp: "clear",
+            loadOp: "clear" as GPULoadOp,
             clearValue: [1, 1, 1, 1.0],
-            storeOp: "store",
+            storeOp: "store" as GPUStoreOp,
           }],
             depthStencilAttachment: {
               view: depthTextureView,
