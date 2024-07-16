@@ -128,26 +128,6 @@ export class ActorRenderer{
             }]
         })
 
-        // this.translationArrayLocation = device.createBuffer({
-        //     label : "Translation Array Buffer",
-        //     size : 24 * 3 * 4,
-        //     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        // });
-
-        this.bindGroup = device.createBindGroup({
-            layout : this.pipeline.getBindGroupLayout(0),
-            entries : [{
-                binding : 0,
-                resource: {buffer: cameraBuffer}
-            }, {
-                binding: 1,
-                resource: {buffer: lightBuffer}
-            }, {
-                binding: 2,
-                resource: {buffer: this.uniformArrayLocation}
-            }]
-        })
-
     }
 
     renderShadow(pass) {
@@ -178,9 +158,7 @@ export class ActorRenderer{
 
     }
 
-    updateUniformArray (device, A_matrix, trans_matrix) {
+    updateUniformArray (device, A_matrix) {
         device.queue.writeBuffer (this.uniformArrayLocation, 0, A_matrix);
-        //device.queue.writeBuffer (this.translationArrayLocation, 0, trans_matrix);
-        
     }
 }

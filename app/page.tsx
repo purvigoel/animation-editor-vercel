@@ -295,37 +295,34 @@ export default function Home() {
     let loaded = false;
 
     const renderLoop = (timestamp: number) => {
-      if (timestamp < lastFrameTime + frameDuration && loaded) {
-          requestAnimationFrame(renderLoop);
-          return;
-      }
-      if (params["pause"] && !params["draw_once"]) {
-          requestAnimationFrame(renderLoop);
-          return;
-      }
+        if (timestamp < lastFrameTime + frameDuration) {
+            requestAnimationFrame(renderLoop);
+            return;
+        }
+        if (params["pause"] && !params["draw_once"]) {
+            requestAnimationFrame(renderLoop);
+            return;
+        }
 
-      lastFrameTime = timestamp;
+        lastFrameTime = timestamp;
 
-      if (!params["draw_once"]){
-          globalTimeline.increment_time();
-          globalTimeline.increment_time_visual();
-          params["currTime"] = globalTimeline.curr_time;
-      }
-      
-      if(loaded){
+        if (!params["draw_once"]){
+            globalTimeline.increment_time();
+            globalTimeline.increment_time_visual();
+            params["currTime"] = globalTimeline.curr_time;
+        }
+
         params["draw_once"] = false;
-      }
+        setCurrentFrame(globalTimeline.curr_time);
+        setCameraMatrix (device, canvas);
+        if (actor && actor.actorRenderer) {
+          let [to_skin, translation] = actor.get_skel_at_time( globalTimeline.curr_time);
+          var A_matrix = new Float32Array(to_skin.flat());
+          var trans_matrix = new Float32Array(translation.flat());
+          actor.actorRenderer.updateUniformArray (device, A_matrix);
+        }
 
-      setCurrentFrame(globalTimeline.curr_time);
-      setCameraMatrix (device, canvas);
-      if (actor && actor.actorRenderer) {
-        let [to_skin, translation] = actor.get_skel_at_time( globalTimeline.curr_time);
-        var A_matrix = new Float32Array(to_skin.flat());
-        var trans_matrix = new Float32Array(translation.flat());
-        actor.actorRenderer.updateUniformArray (device, A_matrix);
-      }
-
-      let contextView = context.getCurrentTexture().createView()
+        let contextView = context.getCurrentTexture().createView()
         const encoder = device.createCommandEncoder();
 
         // Render pass for shadows
@@ -341,11 +338,14 @@ export default function Home() {
         });
 
         if (floorRenderer && actor && actor.actorRenderer) {
+          console.log ("calculating shadow depths");
           floorRenderer.renderShadow(shadowPass);
           actor.actorRenderer.renderShadow(shadowPass);
         }
 
         shadowPass.end();
+
+        
         
         // Actual render pass for objects.
         const pass = encoder.beginRenderPass({
