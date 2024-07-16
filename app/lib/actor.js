@@ -121,10 +121,18 @@ export class Actor {
         this.smpl.global_translation[0][time] = trans.arraySync();
     }
 
+    set_keyframe_all(keyframes, trans){
+        this.smpl.full_pose[0] = keyframes.arraySync();
+        this.smpl.global_translation[0] = trans.arraySync();
+    }
+
     async update_all_poses(){
         console.log("updating poses")
         let [joints, A] = await this.smpl.forward_interpolated();
+        
         this.skeleton.update_skel_skinning(A, joints);
+
+        this.skeletonRenderer.update_joints_all();
         console.log("done updating poses")
     }
 

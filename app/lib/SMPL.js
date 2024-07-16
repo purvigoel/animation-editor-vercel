@@ -65,6 +65,7 @@ export class SMPL{
         this.v_shaped = mesh;
         
         let global_translation_expanded = this.global_translation;//.arraySync();
+        console.log(global_translation.shape)
         global_translation_expanded = global_translation_expanded[0];
         global_translation_expanded = tf.tensor(global_translation_expanded, [60, 1, 3]);
         this.curr_joints = tf.add(this.curr_joints, global_translation_expanded);

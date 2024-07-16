@@ -21,6 +21,7 @@ import {InterpolationWidget} from "./lib/interpolation_widget.js";
 import {loadGLTF, gltf_fragmentShaderSource, gltf_vertexShaderSource, renderScene} from "./lib/scenegraph/gltf_reader.js";
 import {m4} from "./lib/m4.js";
 import {camera, getViewProjectionMatrix, adjustCamera} from "./lib/camera.js";
+import * as tf from "@tensorflow/tfjs";
 //import * as webglUtils from 'webgl-utils.js';
 
 
@@ -136,6 +137,34 @@ export default function Home() {
       }
     };
     document.addEventListener('interpolateChange', handleInterpolate);
+
+    const handleAutoDetailRequest = async () => {
+      if (actor && actor.skeleton && actor.skeletonRenderer && actor.smpl) {
+        console.log("auto detail request");
+        try {
+          const response = await fetch('http://localhost:9090/auto-detail-request', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ detail: 'auto', keyframe_inds: params.keyframe_inds, full_pose: actor.smpl.full_pose[0], translation: actor.smpl.global_translation[0] }),
+          });
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          const data = await response.json();
+          const pred_poses = tf.tensor(data.data["full_pose"], [60, 24, 3, 3]);
+          const pred_trans = tf.tensor(data.data["full_trans"], [ 60, 3]);
+          actor.set_keyframe_all(pred_poses, pred_trans);
+          await actor.update_all_poses();
+          actor.skeletonRenderer.update_joints_all();
+
+        } catch (error) {
+          console.error('Error:', error);
+        }
+      }
+    };
+    document.addEventListener('autoDetailRequest', handleAutoDetailRequest);
     
     const handleAngleChange = async (angle: number, coord: number) => {
       if (actor && actor.skeletonRenderer && params["clicked"] != null) {
@@ -409,7 +438,10 @@ export default function Home() {
             </button>
             
           </Popover>
-          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
+          <button type="button" className="bg-green-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
+            e.preventDefault();
+            document.dispatchEvent(new CustomEvent('autoDetailRequest'));
+          }}  onKeyDown={(e) => e.preventDefault()}>
             Auto Detail
           </button>
           <button type="button" className="bg-blue-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
