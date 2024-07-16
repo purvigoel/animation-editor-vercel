@@ -9,8 +9,13 @@ const vertexShaderSource = `
         @location(2) shadowPos : vec3f
     }
 
+    struct LightingInput {
+        light_matrix : mat4x4f,
+        light_pos : vec4f
+    };
+
     @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
-    @group(0) @binding(1) var<uniform> light_matrix : mat4x4f;
+    @group(0) @binding(1) var<uniform> u_lightInfo : LightingInput;
     @group(0) @binding(2) var<uniform> u_uniformArray : array<vec4f, 384/4>;
 
     fn getBoneMatrix (jointNdx : i32) -> mat4x4f {
@@ -32,6 +37,8 @@ const vertexShaderSource = `
         var output : VertexOutput;
         var skinPosition : vec4f = vec4f(0.0);
         var skinMatrix : mat4x4f = mat4x4f();
+
+        var light_matrix : mat4x4f = u_lightInfo.light_matrix;
 
         for (var i = 0; i < 4; i++) {
             var jointIndex : i32 = i32(a_JOINTS[i]);
@@ -58,6 +65,13 @@ const vertexShaderSource = `
     }    
 `;
 const fragmentShaderSource = `
+    struct LightingInput {
+        light_matrix : mat4x4f,
+        light_pos : vec4f
+    };
+    @group(0) @binding(1) var<uniform> u_lightInfo : LightingInput;
+    @group(0) @binding(3) var<uniform> actorColor : vec4f;
+
     @group(1) @binding(0) var shadowMap: texture_depth_2d;
     @group(1) @binding(1) var shadowSampler: sampler_comparison;
 
@@ -77,8 +91,8 @@ const fragmentShaderSource = `
                      @location(2) shadowPos : vec3f) -> @location(0) vec4f {
         //return vec4f(vec3f(vPosition.z), 1);
         var uLightColor : vec3f = vec3f(1.0, 1.0, 1.0);
-        var vLightPosition : vec3f = vec3f(0.001, 4, 0.001);
-        var uObjectColor : vec3f = vec3f(0.89, 0.47, 0.44);
+        var vLightPosition : vec3f = u_lightInfo.light_pos.xyz;
+        // var uObjectColor : vec3f = actorColor.xyz;
 
         var ambientStrength : f32 = 0.2;
         var ambient : vec3f = ambientStrength * uLightColor;
@@ -120,7 +134,7 @@ const fragmentShaderSource = `
  
         // return vec4(vec3f(visibility), 1);
        // var result = visibility * uObjectColor;
-        var result : vec3f = (ambient + visibility * (diffuse + specular)) * uObjectColor;
+        var result : vec3f = (ambient + visibility * (diffuse + specular)) * actorColor.xyz;
         return vec4(result, 1.0);
     }
 `;
