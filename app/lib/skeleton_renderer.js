@@ -1,6 +1,9 @@
-import { getViewMatrix, getCameraMatrix, setCameraMatrix } from "./camera.js";
+import { getViewMatrix, cameraBuffer, getCameraMatrix, setCameraMatrix } from "./camera.js";
 import {m4} from "./m4.js";
 import { Clickable } from "./clickable.js";
+
+const matrixSize = 4 * 4;
+const numInstances = 24;
 
 export class SkeletonRenderer {
     constructor(gl, total_frames, actor){
@@ -9,15 +12,22 @@ export class SkeletonRenderer {
         this.num_joints = actor.skeleton.num_joints;
         this.joint_program = null;
         this.skel_program = null;
-        this.joint_buffer = [];
+        this.jointBuffer = [];
         this.joint_pos = [];
-        this.position_buffer = null;
-        this.index_buffer = null;
+        this.positionBuffer = null;
+        this.indexBuffer = null;
         this.actor = actor;
 
         this.sphere = this.createSphere(0.025, 16, 16);
         this.is_clickable = true;
         this.clickables = [];
+    
+        this.jointTransformsData = new Float32Array (matrixSize * numInstances);
+        this.jointHoveredData = new Int32Array (numInstances);
+        this.jointTransformsBuffer = null;
+
+        this.linePipeline = null;
+        this.spherePipeline = null;
         
         this.kinematic_tree = [ [0, 2], [0, 1], [0, 3], [2, 5], [5, 8], [8, 11], [1, 4], [4, 7], [7, 10], [3, 6], [6, 9], [9, 12], [12, 15],
         [9, 13], [13,16], [16, 18], [18,20], [9, 14], [14,17], [17,19],[19,21]];
@@ -30,57 +40,159 @@ export class SkeletonRenderer {
         return this.clickables;
     }
 
-    initializeShaderProgram(gl){
-       
-        const skel_vertexShaderSource = `
-        attribute vec3 a_position;
-        uniform mat4 u_matrix;
-
-        void main() {
-            gl_Position = u_matrix * vec4(a_position, 1.0);
-        }
-        `;
-
-        const skel_fragmentShaderSource = `
-            precision mediump float;
-            uniform int is_hovered;
-            void main() {
-                if(is_hovered == 1){
-                    gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
-                } else {
-                    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    initializeShaderProgram(device){
+        const lineShaderModule = device.createShaderModule ( {
+            label : "Skeleton line shader",
+            code:
+            `
+                @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
+                @vertex
+                fn vertexMain(@location(0) pos: vec3f) ->
+                    @builtin(position) vec4f {
+                    return u_matrix * vec4(pos, 1);
                 }
+                
+
+                @fragment
+                fn fragmentMain() -> @location(0) vec4f {
+                    return vec4f (0, 0, 0, 1);
+                    /*if (is_hovered) {
+                        return vec4f (1, 1, 0, 1);
+                    } else {
+                        return vec4f (0, 0, 0, 1);
+                    }*/
+        
+                }
+            `
+        }
+        );
+
+        const jointShaderModule = device.createShaderModule ( {
+            label : "Skeleton joint shader",
+            code:
+            `   struct VertexOutput {
+                    @builtin(position) vPosition : vec4f,
+                    @location(0) @interpolate(flat) isHovered : u32
+                }
+
+                @group(0) @binding(0) var<uniform> u_jointTransforms : array<mat4x4f, 24>;
+                @group(0) @binding(1) var<uniform> u_isHovered : array<vec4u, 6>;
+                @vertex
+                fn vertexMain(@builtin(instance_index) instanceIdx : u32,
+                            @location(0) pos: vec3f) -> VertexOutput {
+                    var output : VertexOutput;
+                    output.vPosition =  u_jointTransforms[instanceIdx] * vec4(pos, 1);
+                    output.isHovered = u_isHovered[instanceIdx/4 ][instanceIdx % 4];
+                    return output;
+                }
+
+                @fragment
+                fn fragmentMain(@location(0) @interpolate(flat) isHovered : u32) -> @location(0) vec4f {
+                    if (isHovered == 1) {
+                        return vec4f (1, 1, 0, 1);
+                    } else {
+                        return vec4f (0, 0, 0, 1);
+                    }
+        
+                }
+            `
+        }
+        );
+
+        /*this.cameraBindGroupLayout = device.createBindGroupLayout({
+            entries : [{
+                binding : 0,
+                visibility : GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                buffer: {}
+            }]
+        });
+
+        this.jointTransformsBindGroupLayout = device.createBindGroupLayout({
+            entries : [{
+                binding : 0,
+                visibility : GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                buffer: {}
+            }]
+        });*/
+
+        /*this.pipelineLayout = device.createPipelineLayout({
+            bindGroupLayouts: [this.cameraBindGroupLayout]
+        });*/
+
+        this.linePipeline = device.createRenderPipeline({
+            label : "Skeleton Pipeline (Lines)",
+            layout : "auto",
+            vertex: {
+                module: lineShaderModule,
+                entryPoint : "vertexMain",
+                buffers: [
+                    // Position Buffer
+                    {
+                        arrayStride: 3 * 4,
+                        attributes: [{
+                        format: "float32x3",
+                        offset: 0,
+                        shaderLocation: 0, // Position, see vertex shader
+                        }],
+                    }
+                ]
+            },
+            fragment: {
+                module: lineShaderModule,
+                entryPoint: "fragmentMain",
+                targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat()
+                }]
+            },
+            primitive: {
+                topology: "line-list"
+            },
+            depthStencil: {
+                depthWriteEnabled: false,
+                depthCompare: "always",
+                format: "depth24plus"
+            },
+            multisample: {
+                count: 4,
             }
-        `;
+        });
 
-        const skel_vertexShader = this.createShader(gl, gl.VERTEX_SHADER, skel_vertexShaderSource);
-        const skel_fragmentShader = this.createShader(gl, gl.FRAGMENT_SHADER, skel_fragmentShaderSource);
-        this.skel_program = this.createProgram(gl, skel_vertexShader, skel_fragmentShader);
+        this.spherePipeline = device.createRenderPipeline({
+            label : "Skeleton Pipeline (Spheres)",
+            layout : "auto",
+            vertex: {
+                module: jointShaderModule,
+                entryPoint : "vertexMain",
+                buffers: [
+                    // Position Buffer
+                    {
+                        arrayStride: 3 * 4,
+                        attributes: [{
+                        format: "float32x3",
+                        offset: 0,
+                        shaderLocation: 0, // Position, see vertex shader
+                        }],
+                    }
+                ]
+            },
+            fragment: {
+                module: jointShaderModule,
+                entryPoint: "fragmentMain",
+                targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat()
+                }]
+            },
+            depthStencil: {
+                depthWriteEnabled: false,
+                depthCompare: "always",
+                format: "depth24plus"
+            },
+            multisample: {
+                count: 4,
+            }
+        });
     }
 
-    createShader(gl, type, source) {
-        const shader = gl.createShader(type);
-        gl.shaderSource(shader, source);
-        gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-            console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
-            gl.deleteShader(shader);
-            return null;
-        }
-        return shader;
-    }
-
-    createProgram(gl, vertexShader, fragmentShader) {
-        const program = gl.createProgram();
-        gl.attachShader(program, vertexShader);
-        gl.attachShader(program, fragmentShader);
-        gl.linkProgram(program);
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(program));
-            return null;
-        }
-        return program;
-    }
 
     joints_to_buffer(joint_array){
         let all_joints = [];
@@ -100,7 +212,7 @@ export class SkeletonRenderer {
             }
             all_joints.push(joints)
         }
-        this.joint_buffer = all_joints;
+        this.jointBuffer = all_joints;
         this.joint_pos = joint_array;
     }
 
@@ -119,7 +231,7 @@ export class SkeletonRenderer {
             joints.push( joint_array[end_joint][1] );
             joints.push( joint_array[end_joint][2] );
         }
-        this.joint_buffer[fr] = joints;
+        this.jointBuffer[fr] = joints;
         this.joint_pos[fr] = joint_array;
     }
 
@@ -174,36 +286,133 @@ export class SkeletonRenderer {
     }
     
 
-    initializeBuffers(gl){
-        this.positionBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.joint_buffer[0]), gl.STATIC_DRAW);
+    initializeBuffers(device){
+        var positions = new Float32Array(this.jointBuffer[0]);
+        this.positionBuffer = device.createBuffer({
+            label: "Skeleton positions",
+            size: positions.byteLength,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+        });
 
+        device.queue.writeBuffer (this.positionBuffer, 0, positions);
 
-        this.sphereBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.sphereBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, this.sphere.positions, gl.STATIC_DRAW);
+        this.sphereBuffer = device.createBuffer({
+            label: "Sphere positions",
+            size: this.sphere.positions.byteLength,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+        })
 
-        this.indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.sphere.indices, gl.STATIC_DRAW);
+        device.queue.writeBuffer (this.sphereBuffer, 0, this.sphere.positions);
+
+        // Index Buffer for sphere
+        this.index_buffer = device.createBuffer({
+            label : "Sphere Index Buffer",
+            size: this.sphere.indices.byteLength,
+            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST
+        });
+
+        device.queue.writeBuffer (this.index_buffer, 0, this.sphere.indices);
 
         for (let i = 0; i < 24; i ++) {
-            this.clickables.push(new Clickable([-100, -100, -100], 0.025, gl, i));
+            this.clickables.push(new Clickable([-100, -100, -100], 0.025, i, device));
+        }
+
+        this.lineBindGroup = device.createBindGroup({
+            layout : this.linePipeline.getBindGroupLayout(0),
+            entries : [{
+                binding : 0,
+                resource: {buffer: cameraBuffer}
+            }]
+        })
+
+        this.jointTransformsBuffer = device.createBuffer({
+            label: "Joint transforms",
+            size: this.jointTransformsData.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
+        this.jointHoveredBuffer = device.createBuffer({
+            label: "Joint transforms",
+            size: this.jointHoveredData.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
+        
+
+        this.sphereBindGroup = device.createBindGroup({
+            layout : this.spherePipeline.getBindGroupLayout(0),
+            entries : [{
+                binding : 0,
+                resource: {buffer : this.jointTransformsBuffer}
+            }, {
+                binding : 1,
+                resource: {buffer : this.jointHoveredBuffer}
+            }]
+        })
+    }
+
+    updateJointTransforms (time, canvas) {
+        const camMat = getCameraMatrix(canvas);
+        for (let i = 0; i < this.joint_pos[time].length; i++) {
+            //console.log("i: %d\n", i);
+            const modelMatrix = m4.translation(this.joint_pos[time][i][0], this.joint_pos[time][i][1], this.joint_pos[time][i][2]);
+            const mvpMatrix = m4.multiply(camMat, modelMatrix); 
+            //console.log("offset: %d\n", matrixSize * i);
+            this.jointTransformsData.set(mvpMatrix, matrixSize * i);
+            this.clickables[i].origin[0] = this.joint_pos[time][i][0];
+            this.clickables[i].origin[1] = this.joint_pos[time][i][1];
+            this.clickables[i].origin[2] =  this.joint_pos[time][i][2];
+
+            if(this.clickables[i].isHovered || this.clickables[i].isClicked){
+                this.jointHoveredData[i] = 1;
+            } else {
+                this.jointHoveredData[i] = 0;
+            }
         }
     }
 
-    render(gl, time){
-        gl.useProgram(this.skel_program);
+    render(device, pass, canvas, time) {
+        pass.setPipeline(this.linePipeline);
+        device.queue.writeBuffer (this.positionBuffer, 0, new Float32Array(this.jointBuffer[time])); 
+        pass.setVertexBuffer(0, this.positionBuffer);
+        pass.setBindGroup(0, this.lineBindGroup);
+        //device.queue.writeBuffer(this.cameraBuffer, 0, new Float32Array(camMat));
+        // pass.setVertexBuffer(1, this.normalBuffer);
+        
+        pass.draw (this.jointBuffer[0].length/3);
+
+        // Draws the joints (spheres)
+
+        pass.setPipeline(this.spherePipeline);
+        pass.setBindGroup (0, this.sphereBindGroup);
+        pass.setVertexBuffer(0, this.sphereBuffer);
+        pass.setIndexBuffer(this.index_buffer, "uint16");
+
+        this.updateJointTransforms (time, canvas);
+        device.queue.writeBuffer(this.jointTransformsBuffer, 0, this.jointTransformsData);
+        device.queue.writeBuffer(this.jointHoveredBuffer, 0, this.jointHoveredData);
+        pass.drawIndexed(this.sphere.indices.length, numInstances);
+        /*for (let i = 0; i < this.joint_pos[time].length; i++) {
+            //console.log("i: %d\n", i);
+            const modelMatrix = m4.translation(this.joint_pos[time][i][0], this.joint_pos[time][i][1], this.joint_pos[time][i][2]);
+            const mvpMatrix = m4.multiply(camMat, modelMatrix); 
+            //device.queue.writeBuffer (this.cameraBuffer, 0, new Float32Array(mvpMatrix));
+            this.clickables[i].origin[0] = this.joint_pos[time][i][0];
+            this.clickables[i].origin[1] = this.joint_pos[time][i][1];
+            this.clickables[i].origin[2] =  this.joint_pos[time][i][2];
+            pass.drawIndexed(this.sphere.indices.length);
+        }*/
+
+        
+
+        /*gl.useProgram(this.skel_program);
         const skel_positionLocation = gl.getAttribLocation(this.skel_program, 'a_position');
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
 
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.joint_buffer[time]), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.jointBuffer[time]), gl.STATIC_DRAW);
         gl.enableVertexAttribArray(skel_positionLocation);
         gl.vertexAttribPointer(skel_positionLocation, 3, gl.FLOAT, false, 0, 0);
 
         setCameraMatrix(gl, this.skel_program);
-        gl.drawArrays(gl.LINES, 0, this.joint_buffer[0].length / 3);
+        gl.drawArrays(gl.LINES, 0, this.jointBuffer[0].length / 3);
 
         
         const camMat = getCameraMatrix(gl)
@@ -231,12 +440,15 @@ export class SkeletonRenderer {
             }
             gl.drawElements(gl.TRIANGLES, this.sphere.indices.length,  gl.UNSIGNED_SHORT, 0);
             
-        }
+        }*/
 
-        for(let i = 0; i < this.joint_pos[time].length; i++){
+        /*for(let i = 0; i < this.joint_pos[time].length; i++){
             this.clickables[i].angleController.render(gl, this.clickables[i].origin);
-        }
-
+        }*/
+       /*console.log ("Rendering clickables");
+        for (let i = 0; i < this.joint_pos[time].length; i++) {
+            this.clickables[i].angleController.render(device, this.clickables[i].origin);
+        }*/
     }
 
 }

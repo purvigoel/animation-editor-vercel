@@ -8,9 +8,10 @@ export class AngleControllerWidget {
         this.renderer = new AngleControllerRenderer(this.gl);
     }
 
-    render(){
+    render(device, origin){
+        console.log ("angle_controller_widget render");
         if(this.show){
-            this.renderer.render(this.gl, this.origin);
+            this.renderer.render(device, origin);
         }
     }
 }

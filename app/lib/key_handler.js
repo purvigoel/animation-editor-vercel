@@ -4,6 +4,7 @@ import {addMouseEvents} from "./mouse_handler.js";
 function handleScroll(event, render) {
     camera.radius += event.deltaY * 0.01;
     camera.radius = Math.max(0.1, camera.radius);
+    camera.radius = Math.min(camera.radius, 3);
     render();
 }
 
@@ -26,10 +27,10 @@ function handleMouseMove(event, render) {
     render();
 }
 
-function handleKeyDown(gl, canvas, event, render, params) {
+function handleKeyDown(canvas, event, render, params) {
     if (event.code === 'Space') {
         params["pause"] = !params["pause"];
-        addMouseEvents(canvas, params["clickables"], render, gl, params);
+        addMouseEvents(canvas, params["clickables"], render, params);
         
         for(let i = 0; i < params.keyframe_widgets.length; i++){
             params.keyframe_widgets[i].deselect();
@@ -41,7 +42,7 @@ function handleMouseUp() {
     camera.isDragging = false;
 }
 
-export function addAllEvents(gl, canvas, render, params){
+export function addAllEvents(canvas, render, params){
     canvas.addEventListener('wheel', function(event){
         params["draw_once"] = true;
         handleScroll(event,render);
@@ -65,6 +66,6 @@ export function addAllEvents(gl, canvas, render, params){
 
     window.addEventListener('keydown', function(event){
         params["draw_once"] = true;
-        handleKeyDown(gl, canvas, event, render, params);
+        handleKeyDown(canvas, event, render, params);
     });
 }

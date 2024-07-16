@@ -7,7 +7,7 @@ let mouseMoveHandler = null;
 let mouseDownHandler = null;
 let click_id = -1;
 
-export function addMouseEvents(canvas, clickables, render, gl, params) {
+export function addMouseEvents(canvas, clickables, render, params) {
 
     
     if (!mouseMoveHandler) {
@@ -19,7 +19,7 @@ export function addMouseEvents(canvas, clickables, render, gl, params) {
             const ndcX = (x / canvas.width) * 2 - 1;
             const ndcY = -(y / canvas.height) * 2 + 1;
 
-            let [invModelViewMatrix, invProjectionMatrix, camera_pos] = getViewProjectionMatrix(gl);
+            let [invModelViewMatrix, invProjectionMatrix, camera_pos] = getViewProjectionMatrix(canvas);
             invProjectionMatrix = m4.inverse(invProjectionMatrix);
             invModelViewMatrix = m4.inverse(invModelViewMatrix);
 
@@ -49,6 +49,7 @@ export function addMouseEvents(canvas, clickables, render, gl, params) {
 
     if (!mouseDownHandler) {
         mouseDownHandler = function(event) {
+            console.log("Mouse down");
             let clicked = false;
             for (var i = 0; i < clickables.length; i++) {
                 if (clickables[i].isHovered) {

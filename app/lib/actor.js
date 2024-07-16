@@ -4,7 +4,7 @@ import {ActorRenderer} from "./actor_renderer.js";
 import {SkeletonRenderer} from "./skeleton_renderer.js";
 
 export class Actor {
-    constructor(tot_frames, gl){
+    constructor(tot_frames, device){
         this.smpl = null;
         this.skeleton = null;
         this.template_positions = null;
@@ -13,7 +13,7 @@ export class Actor {
         this.bone_weights = null;
         this.bone_indices = null;
         this.tot_frames = tot_frames;
-        this.gl = gl;
+        this.device = device;
         this.actorRenderer = null; //new ActorRenderer(gl, this);
         this.skeletonRenderer = null; //new SkeletonRenderer(gl, tot_frames, this);
        
@@ -38,8 +38,8 @@ export class Actor {
         this.bone_indices = null;
         [this.bone_indices, this.bone_weights] = this.get_bone_indices();
 
-        this.actorRenderer = new ActorRenderer(this.gl, this);
-        this.skeletonRenderer = new SkeletonRenderer(this.gl, this.tot_frames, this);
+        this.actorRenderer = new ActorRenderer(this.device, this);
+        this.skeletonRenderer = new SkeletonRenderer(this.device, this.tot_frames, this);
     }
 
     calculateNormals(vertices, indices) {
@@ -101,7 +101,7 @@ export class Actor {
         }
         
         console.log(inds.length == bone_weights.length);
-        return [inds, bone_weights];
+        return [Float32Array.from(inds), Float32Array.from(bone_weights)];
     }
 
     get_skel_at_time(time){

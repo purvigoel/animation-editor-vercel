@@ -10,46 +10,41 @@ export let camera = {
     lastMousePosition:{ x: 0, y: 0 },
 };
 
-export function setCameraMatrix(gl, program) {
-    const matrixLocation = gl.getUniformLocation(program, 'u_matrix');
-    
-    // Define a simple projection matrix
-    const fieldOfViewRadians = Math.PI * 0.5;
-    const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    const zNear = 0.1;
-    const zFar = 1000;
-    const projectionMatrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
-    
-    // Calculate the camera position in Cartesian coordinates
-    const x = camera.radius * Math.sin(camera.theta) * Math.cos(camera.phi);
-    const y = camera.radius * Math.sin(camera.phi);
-    const z = camera.radius * Math.cos(camera.theta) * Math.cos(camera.phi);
-    const cameraPosition = [x, y, z];
-    const up = [0, 1, 0];
-    const target = camera.lookAt;
-    const cameraMatrix = m4.lookAt(cameraPosition, target, up);
-    
-    // Make a view matrix from the camera matrix.
-    const viewMatrix = m4.inverse(cameraMatrix);
-    
-    const viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
-    
-    gl.uniformMatrix4fv(matrixLocation, false, viewProjectionMatrix);
+export let cameraBuffer = null;
 
+export function initCamera(device) {
+    cameraBuffer = device.createBuffer ({
+        label: "uniform camera buffer",
+        size: ( 4 * 4 ) * 4,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+    });
 }
 
-export function getCameraMatrix(gl){
+export function setCameraMatrix(device, canvas) {
+    device.queue.writeBuffer (cameraBuffer, 0, new Float32Array(getCameraMatrix(canvas)));
+}
+
+function clamp(x, a, b) {
+    return Math.min (Math.max(x, a), b);
+}
+
+export function getCameraMatrix(canvas){
     // Define a simple projection matrix
     const fieldOfViewRadians = Math.PI * 0.5;
-    const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+    const aspect = canvas.clientWidth / canvas.clientHeight;
     const zNear = 0.1;
     const zFar = 100;
     const projectionMatrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
     
     // Calculate the camera position in Cartesian coordinates
-    const x = camera.radius * Math.sin(camera.theta) * Math.cos(camera.phi);
-    const y = camera.radius * Math.sin(camera.phi);
-    const z = camera.radius * Math.cos(camera.theta) * Math.cos(camera.phi);
+
+    let phi = clamp (camera.phi, -Math.PI/12, Math.PI);
+
+    const x = camera.radius * Math.sin(camera.theta) * Math.cos(phi);
+    const y = camera.radius * Math.sin(phi);
+    const z = camera.radius * Math.cos(camera.theta) * Math.cos(phi);
+    //console.log("cameraPosition: x:%f, y: %f, z: %f", x, y, z);
+    //console.log("lookAt: x:%f, y: %f, z: %f", camera.lookAt[0], camera.lookAt[1], camera.lookAt[2]);
     const cameraPosition = [x, y, z];
     const up = [0, 1, 0];
     const target = camera.lookAt;
@@ -64,18 +59,22 @@ export function getCameraMatrix(gl){
 
 }
 
-export function getViewProjectionMatrix(gl){
+export function getViewProjectionMatrix(canvas){
     // Define a simple projection matrix
     const fieldOfViewRadians = Math.PI * 0.5;
-    const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+    const aspect = canvas.clientWidth / canvas.clientHeight;
     const zNear = 0.1;
     const zFar = 100;
     const projectionMatrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
-    
+
     // Calculate the camera position in Cartesian coordinates
-    const x = camera.radius * Math.sin(camera.theta) * Math.cos(camera.phi);
-    const y = camera.radius * Math.sin(camera.phi);
-    const z = camera.radius * Math.cos(camera.theta) * Math.cos(camera.phi);
+
+    let phi = clamp (camera.phi, -Math.PI/12, Math.PI);
+
+    const x = camera.radius * Math.sin(camera.theta) * Math.cos(phi);
+    const y = camera.radius * Math.sin(phi);
+    const z = camera.radius * Math.cos(camera.theta) * Math.cos(phi);
+    
     const cameraPosition = [x, y, z];
     const up = [0, 1, 0];
     const target = camera.lookAt;
@@ -104,7 +103,7 @@ export function adjustCamera(boundingBox){
     const spherical = cartesianToSpherical(position[0], position[1], position[2]);
     camera.radius = spherical.radius;
     camera.theta = spherical.theta;
-    camera.phi = spherical.phi;
+    camera.phi = clamp(spherical.phi);
     camera.lookAt = center;
 }
 
