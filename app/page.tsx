@@ -312,14 +312,18 @@ export default function Home() {
             params["currTime"] = globalTimeline.curr_time;
         }
 
-        params["draw_once"] = false;
+        if(loaded){
+          params["draw_once"] = false;
+        }
+  
         setCurrentFrame(globalTimeline.curr_time);
         setCameraMatrix (device, canvas);
         if (actor && actor.actorRenderer) {
           let [to_skin, translation] = actor.get_skel_at_time( globalTimeline.curr_time);
           var A_matrix = new Float32Array(to_skin.flat());
           var trans_matrix = new Float32Array(translation.flat());
-          actor.actorRenderer.updateUniformArray (device, A_matrix);
+          actor.actorRenderer.updateUniformArray (device, A_matrix, trans_matrix);
+          loaded = true;
         }
 
         let contextView = context.getCurrentTexture().createView()
@@ -345,7 +349,6 @@ export default function Home() {
 
         shadowPass.end();
 
-        
         
         // Actual render pass for objects.
         const pass = encoder.beginRenderPass({
