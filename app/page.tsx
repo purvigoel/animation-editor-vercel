@@ -295,7 +295,6 @@ export default function Home() {
         });
 
         if (floorRenderer && actor && actor.actorRenderer) {
-          console.log ("calculating shadow depths");
           floorRenderer.renderShadow(shadowPass);
           actor.actorRenderer.renderShadow(shadowPass);
         }

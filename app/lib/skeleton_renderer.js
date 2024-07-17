@@ -1,6 +1,7 @@
 import { getViewMatrix, cameraBuffer, getCameraMatrix, setCameraMatrix } from "./camera.js";
 import {m4} from "./m4.js";
 import { Clickable } from "./clickable.js";
+import {click_id} from "./mouse_handler.js";
 
 const matrixSize = 4 * 4;
 const numInstances = 24;
@@ -442,12 +443,16 @@ export class SkeletonRenderer {
             
         }*/
 
+        if (click_id != -1) {
+            this.clickables[click_id].angleController.render(device, pass, this.joint_pos[time][click_id]);
+        }
+
         /*for(let i = 0; i < this.joint_pos[time].length; i++){
             this.clickables[i].angleController.render(gl, this.clickables[i].origin);
         }*/
-       /*console.log ("Rendering clickables");
-        for (let i = 0; i < this.joint_pos[time].length; i++) {
-            this.clickables[i].angleController.render(device, this.clickables[i].origin);
+       /*console.log ("Rendering clickables");*/
+        /*for (let i = 0; i < this.joint_pos[time].length; i++) {
+            this.clickables[i].angleController.render(pass);
         }*/
     }
 

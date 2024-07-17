@@ -5,7 +5,7 @@ import { AngleControllerRenderer } from './angle_controller_renderer.js';
 
 let mouseMoveHandler = null;
 let mouseDownHandler = null;
-let click_id = -1;
+export let click_id = -1;
 
 export function addMouseEvents(canvas, clickables, render, params) {
 
