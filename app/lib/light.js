@@ -8,7 +8,7 @@ export let shadowBindGroupLayout;
 export let shadowBindGroup;
 
 export let light = {
-  position: [1, 4, 1],
+  position: [2, 3, 2],
   lookAt: [0, 0, 0],
 };
 

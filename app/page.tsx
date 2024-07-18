@@ -342,7 +342,6 @@ export default function Home() {
         });
 
         if (floorRenderer && actor && actor.actorRenderer) {
-          console.log ("calculating shadow depths");
           floorRenderer.renderShadow(shadowPass);
           actor.actorRenderer.renderShadow(shadowPass);
         }
@@ -374,7 +373,9 @@ export default function Home() {
           floorRenderer.render(pass);
         }
 
+        
         if (actor && actor.actorRenderer && actor.skeletonRenderer) {
+          device.queue.writeBuffer (actor.actorRenderer.colorBuffer, 0, Float32Array.from([0.9, 0.5 * (1 + Math.sin(0.25 * globalTimeline.curr_time))/2, 0.5, 1]));
           actor.actorRenderer.render(pass);
           actor.skeletonRenderer.render (device, pass, canvas, globalTimeline.curr_time);
         }
@@ -504,7 +505,7 @@ export default function Home() {
 
     <div className="flex flex-col h-full" style={{ height: "100vh !important", paddingBottom: "3rem" }}>
       {/* Top bar */}
-      <div className="bg-gray-100 p-2">
+      <div className="bg-gray-100 p-2  ">
         <div className="flex w-full justify-between">
           <Popover
             isOpen={isPopoverOpen}
@@ -521,10 +522,13 @@ export default function Home() {
             </button>
             
           </Popover>
-          <button type="button" className="bg-green-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
-            e.preventDefault();
-            document.dispatchEvent(new CustomEvent('autoDetailRequest'));
-          }}  onKeyDown={(e) => e.preventDefault()}>
+          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
+            Character Color
+          </button>
+          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
+            Light Position
+          </button>
+          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
             Auto Detail
           </button>
           <button type="button" className="bg-blue-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {

@@ -29,8 +29,8 @@ export class FloorRenderer {
     */
     load_textures(device) {
 
-        const y = [50, 50, 0, 255];
-        const w = [255, 255, 255, 255];
+        const y = [200, 200, 200, 255];
+        const w = [225, 225, 225, 255];
         const textureData = new Uint8Array([
             y, w, y, w,
             w, y, w, y,
@@ -116,12 +116,17 @@ export class FloorRenderer {
         const floorShadowDepthModule = device.createShaderModule ({
             label: "Floor shadow depth test shader",
             code: `
+                struct LightingInput {
+                    light_matrix : mat4x4f,
+                    light_pos : vec4f
+                };
                 @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
-                @group(0) @binding(1) var<uniform> lightMatrix : mat4x4f;
+                @group(0) @binding(1) var<uniform> u_lightInfo : LightingInput;
 
                 @vertex
                 fn vertexMain (@location(0) pos : vec3f) -> @builtin(position) vec4f {
-                    return lightMatrix * vec4f(pos, 1);
+                    var result = u_lightInfo.light_matrix * vec4f(pos, 1);
+                    return result;
                 }
             `
 
@@ -130,33 +135,39 @@ export class FloorRenderer {
         const floorShaderModule = device.createShaderModule ({
             label: "Floor Shader",
             code: `
-                struct Uniforms {
-                    u_matrix : mat4x4f,
-                }
+                struct LightingInput {
+                    light_matrix : mat4x4f,
+                    light_pos : vec4f
+                };
 
                 struct VertexOutput {
                     @builtin(position) Position : vec4f,
                     @location(0) vNormal : vec3f,
                     @location(1) vPosition : vec3f,
                     @location(2) shadowPos : vec3f,
-                    @location(3) texCoords : vec2f
+                    @location(3) texCoords : vec2f,
+                    @location(4) posFromLight : vec4f
                 }
 
                 @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
-                @group(0) @binding(1) var<uniform> light_matrix : mat4x4f;
+                @group(0) @binding(1) var<uniform> u_lightInfo : LightingInput;
                 @vertex
                 fn vertexMain(@location(0) pos: vec3f,
                               @location(1) normal : vec3f,
                               @location(2) texCoords : vec2f) -> VertexOutput {
                     var output : VertexOutput;
-                    let lightPos = light_matrix * vec4f(pos, 1);
+
+                    var posFromLight = u_lightInfo.light_matrix * vec4f(pos, 1);
+                    output.posFromLight = posFromLight;
+
                     // Convert to texture coordinates for tex sampling in frag shader
-                    output.shadowPos = vec3 (
-                        lightPos.xy/lightPos.w * vec2(0.5, -0.5) + vec2(0.5),
-                        lightPos.z/lightPos.w
-                    );
-                    
+                    output.shadowPos = vec3f (
+                        posFromLight.x/posFromLight.w * 0.5 + 0.5,
+                        posFromLight.y/posFromLight.w  * -0.5 + 0.5,
+                        posFromLight.z/posFromLight.w 
+                    ); 
                     output.Position = u_matrix * vec4f (pos, 1);
+                    // output.Position = posFromLight;
                     output.vNormal = normal;
                     output.vPosition = pos;
                     output.texCoords = texCoords;
@@ -166,11 +177,15 @@ export class FloorRenderer {
                 @group(0) @binding(2) var thisSampler : sampler;
                 @group(0) @binding(3) var texture : texture_2d<f32>;
 
-                 @group(1) @binding(0) var shadowMap: texture_depth_2d;
-                 @group(1) @binding(1) var shadowSampler: sampler_comparison;
+                @group(1) @binding(0) var shadowMap: texture_depth_2d;
+                @group(1) @binding(1) var shadowSampler: sampler_comparison;
                 @fragment
                 fn fragmentMain(in : VertexOutput) -> @location(0) vec4f {
-                    var vLightPosition : vec3f = vec3f(1, 4, 1);
+                
+                    //return vec4f(in.posFromLight.y / in.posFromLight.w * -0.5 + 0.5,0, 0, 1);
+                    // return vec4f(in.shadowPos.y,0, 0, 1);
+
+                    var vLightPosition : vec3f = u_lightInfo.light_pos.xyz;
                     var norm : vec3f = normalize (in.vNormal);
                     var lightDir : vec3f = normalize (vLightPosition - in.vPosition);
 
@@ -178,14 +193,24 @@ export class FloorRenderer {
                     //return vec4(vec3f(textureSample(shadowMap, shadowSampler, shadowPos.xy)), 1);
                     // Shadow
                     
+                    var shadowPos = vec3f (
+                        in.posFromLight.x / in.posFromLight.w * 0.5 + 0.5,
+                        in.posFromLight.y / in.posFromLight.w * -0.5 + 0.5,
+                        in.posFromLight.z / in.posFromLight.w
+                    );
+
                     var visibility = 0.0;
                     for (var i = -2; i <= 2; i++) {
                         for (var j = -2; j <= 2; j++) {
                             var offset : vec2f = vec2f(f32(i), f32(j)) * oneOverS;
-                            visibility += textureSampleCompare(shadowMap, shadowSampler, in.shadowPos.xy + offset, in.shadowPos.z - .007);
+                            visibility += textureSampleCompare(shadowMap, shadowSampler, shadowPos.xy + offset, shadowPos.z - .002);
                         }
                     }
                     visibility /= 25;
+                    if (shadowPos.x < 0 || shadowPos.x > 1 || shadowPos.y < 0 || shadowPos.y > 1) {
+                        visibility = 1;
+                    } 
+
 
                     /*if (visibility >= 0.75) {
                         visibility = 1;
@@ -196,14 +221,13 @@ export class FloorRenderer {
                     } else {
                         visibility = 0.0;
                     }*/
-                    
+
+                    var texColor : vec4f = textureSample (texture, thisSampler, in.texCoords);
                     var diff : f32 = max (dot (norm, lightDir), 0.0);
-                    // var diffuse : vec4f = diff * vec4f(0.5, 0.5, 0, 1);
-                    var diffuse : vec4f = diff * textureSample (texture, thisSampler, in.texCoords);
-                    // return vec4f(in.texCoords, 0, 1);
-                    var ambient : vec4f = vec4f (0.2, 0.2, 0.2, 0.0);
+                    var diffuse : vec4f = diff * texColor;
+                    var ambient : vec4f = 0.2 * texColor;
                     // var ambient = vec4f(0);
-                    return visibility * (ambient + diffuse);
+                    return visibility * diffuse + ambient;
                 }
             `
 
@@ -219,7 +243,7 @@ export class FloorRenderer {
                 },
                 {
                     binding: 1,
-                    visibility: GPUShaderStage.VERTEX,
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
                     buffer: {
                         type: 'uniform',
                     },
@@ -257,6 +281,9 @@ export class FloorRenderer {
                         }],
                     }
                 ],
+            },
+            primitive: {
+                topology: 'triangle-strip'
             },
             depthStencil: {
                 depthWriteEnabled: true,

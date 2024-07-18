@@ -47,7 +47,8 @@ export class ActorRenderer{
                 },
                 {
                     binding: 1,
-                    visibility: GPUShaderStage.VERTEX,
+                    label: "Lighting",
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
                     buffer: {
                         type: 'uniform',
                     },
@@ -61,11 +62,18 @@ export class ActorRenderer{
                 },
                 {
                     binding: 3,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    buffer: {
+                        type: 'uniform',
+                    },
+                },   
+                {
+                    binding: 4,
                     visibility: GPUShaderStage.VERTEX,
                     buffer: {
                         type: 'uniform',
                     },
-                }            
+                },           
             ]
         });
 
@@ -124,6 +132,12 @@ export class ActorRenderer{
         this.translationArrayLocation = device.createBuffer({
             label : "Translation Array Buffer",
             size : 16,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        });
+
+        this.colorBuffer = device.createBuffer ({
+            label : "Uniform color buffer",
+            size: 4 * 4,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
 
@@ -140,6 +154,9 @@ export class ActorRenderer{
                 resource: {buffer: this.uniformArrayLocation}
             }, {
                 binding: 3,
+                resource: {buffer: this.colorBuffer}
+            }, {
+                binding: 4,
                 resource: {buffer: this.translationArrayLocation}
             }]
         })
