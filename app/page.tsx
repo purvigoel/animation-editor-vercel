@@ -201,10 +201,11 @@ export default function Home() {
       document.addEventListener('interpolateChange', handleInterpolate);
       
       const handleAutoDetailRequest = async () => {
+        console.log("handling autodetail")
         if (actor && actor.skeleton && actor.skeletonRenderer && actor.smpl) {
           console.log("auto detail request");
           try {
-            const response = await fetch('http://localhost:9090/auto-detail-request', {
+            const response = await fetch('http://silver-pg.stanford.edu:9090/auto-detail-request', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -214,6 +215,7 @@ export default function Home() {
             if (!response.ok) {
               throw new Error('Network response was not ok');
             }
+            console.log("here")
             const data = await response.json();
             const pred_poses = tf.tensor(data.data["full_pose"], [60, 24, 3, 3]);
             const pred_trans = tf.tensor(data.data["full_trans"], [ 60, 3]);
@@ -528,7 +530,10 @@ export default function Home() {
           <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
             Light Position
           </button>
-          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
+          <button type="button" className="bg-green-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
+            e.preventDefault();
+            document.dispatchEvent(new CustomEvent('autoDetailRequest'));
+          }}  onKeyDown={(e) => e.preventDefault()}>
             Auto Detail
           </button>
           <button type="button" className="bg-blue-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
