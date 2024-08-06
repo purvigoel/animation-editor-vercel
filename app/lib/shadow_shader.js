@@ -9,6 +9,7 @@ const shaderSource = `
     @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
     @group(0) @binding(1) var<uniform> u_lightInfo : LightingInput;
     @group(0) @binding(2) var<uniform> u_uniformArray : array<vec4f, 384/4>;
+    @group(0) @binding(4) var<uniform> u_transArray : array<vec4f, 1>;
 
     fn getBoneMatrix (jointNdx : i32) -> mat4x4f {
         var v : i32 = jointNdx * 4 ;

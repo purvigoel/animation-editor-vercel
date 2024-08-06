@@ -8,7 +8,7 @@ export let shadowBindGroupLayout;
 export let shadowBindGroup;
 
 export let light = {
-  position: [2, 3, 2],
+  position: [2, 2, 2],
   lookAt: [0, 0, 0],
 };
 
@@ -70,10 +70,10 @@ export function setLightMatrix(device, canvas) {
 
 export function getLightMatrix(canvas){
   // Define a simple projection matrix
-  const fieldOfViewRadians = Math.PI * 0.5;
+  const fieldOfViewRadians = Math.PI * 0.25;
   const aspect = canvas.clientWidth / canvas.clientHeight;
-  const zNear = 0.1;
-  const zFar = 100;
+  const zNear = 1.25;
+  const zFar = 7;
   const projectionMatrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
   
   const up = [0, 1, 0];

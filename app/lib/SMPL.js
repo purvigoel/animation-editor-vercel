@@ -113,6 +113,7 @@ export class SMPL{
         let newPose = tf.matMul(poseMat, rotmat);
         
         poseArray[0][currFrame][joint] = tf.matMul(poseMat , rotmat).arraySync();
+        // poseArray[0][currFrame][joint] = rotmat.arraySync();
         
         this.full_pose = tf.tensor(poseArray); // this.full_pose.shape);
         this.full_pose.arraySync();
@@ -140,6 +141,7 @@ export class SMPL{
         let newPose = tf.matMul(poseMat, rotmat);
         
         poseArray[0][currFrame][joint] = tf.matMul(poseMat , rotmat).arraySync();
+        // poseArray[0][currFrame][joint] = rotmat.arraySync();
         
         let single_frame_pose = tf.tensor(poseArray[0][currFrame], [24, 3, 3]).expandDims(0);
         

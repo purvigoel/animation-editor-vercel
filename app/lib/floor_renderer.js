@@ -144,9 +144,8 @@ export class FloorRenderer {
                     @builtin(position) Position : vec4f,
                     @location(0) vNormal : vec3f,
                     @location(1) vPosition : vec3f,
-                    @location(2) shadowPos : vec3f,
-                    @location(3) texCoords : vec2f,
-                    @location(4) posFromLight : vec4f
+                    @location(2) texCoords : vec2f,
+                    @location(3) posFromLight : vec4f
                 }
 
                 @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
@@ -160,12 +159,6 @@ export class FloorRenderer {
                     var posFromLight = u_lightInfo.light_matrix * vec4f(pos, 1);
                     output.posFromLight = posFromLight;
 
-                    // Convert to texture coordinates for tex sampling in frag shader
-                    output.shadowPos = vec3f (
-                        posFromLight.x/posFromLight.w * 0.5 + 0.5,
-                        posFromLight.y/posFromLight.w  * -0.5 + 0.5,
-                        posFromLight.z/posFromLight.w 
-                    ); 
                     output.Position = u_matrix * vec4f (pos, 1);
                     // output.Position = posFromLight;
                     output.vNormal = normal;
@@ -181,16 +174,11 @@ export class FloorRenderer {
                 @group(1) @binding(1) var shadowSampler: sampler_comparison;
                 @fragment
                 fn fragmentMain(in : VertexOutput) -> @location(0) vec4f {
-                
-                    //return vec4f(in.posFromLight.y / in.posFromLight.w * -0.5 + 0.5,0, 0, 1);
-                    // return vec4f(in.shadowPos.y,0, 0, 1);
-
                     var vLightPosition : vec3f = u_lightInfo.light_pos.xyz;
                     var norm : vec3f = normalize (in.vNormal);
                     var lightDir : vec3f = normalize (vLightPosition - in.vPosition);
 
                     var oneOverS = 1/4096.;
-                    //return vec4(vec3f(textureSample(shadowMap, shadowSampler, shadowPos.xy)), 1);
                     // Shadow
                     
                     var shadowPos = vec3f (
@@ -203,7 +191,7 @@ export class FloorRenderer {
                     for (var i = -2; i <= 2; i++) {
                         for (var j = -2; j <= 2; j++) {
                             var offset : vec2f = vec2f(f32(i), f32(j)) * oneOverS;
-                            visibility += textureSampleCompare(shadowMap, shadowSampler, shadowPos.xy + offset, shadowPos.z - .002);
+                            visibility += textureSampleCompare(shadowMap, shadowSampler, shadowPos.xy + offset, shadowPos.z - .001);
                         }
                     }
                     visibility /= 25;

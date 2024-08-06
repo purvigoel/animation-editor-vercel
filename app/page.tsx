@@ -21,6 +21,7 @@ import {KeyframeWidget} from "./lib/keyframe_widget.js";
 import {InterpolationWidget} from "./lib/interpolation_widget.js";
 import {loadGLTF, gltf_fragmentShaderSource, gltf_vertexShaderSource, renderScene} from "./lib/scenegraph/gltf_reader.js";
 import {m4} from "./lib/m4.js";
+import {initializeTorus, renderTorus} from "./lib/torus.js";
 
 import * as tf from "@tensorflow/tfjs";
 import {camera, initCamera, setCameraMatrix, getViewProjectionMatrix, adjustCamera} from "./lib/camera.js";
@@ -58,6 +59,7 @@ export default function Home() {
     clicked: { id: string | number } | null;
     keyframe_inds: number[];
     keyframe_widgets: KeyframeWidget[];
+    keyframe_creation_widget: KeyframeCreationWidget | null;
   }
 
   let params: Params = {
@@ -70,6 +72,7 @@ export default function Home() {
     clicked: null,
     keyframe_inds: [],
     keyframe_widgets: [],
+    keyframe_creation_widget: null
   };
 
   const tot_frames = 60;
@@ -164,8 +167,7 @@ export default function Home() {
 
 
       const initializeCamera = () => {
-        initCamera(device);
-        
+        initCamera(device);        
       }
       
       const initializeActor = async () => {
@@ -244,6 +246,7 @@ export default function Home() {
           const rotmat = angle_to_rotmat(coord, angle * (Math.PI / 180) - previousAngle);
           
           actor.update_pose(globalTimeline.curr_time, rotmat, params["clicked"].id);
+          actor.skeletonRenderer.clickables[joint_id].angleController.update_rotmat (Array.from(rotmat.dataSync()));
   
           params["draw_once"] = true;
         }
@@ -375,12 +378,12 @@ export default function Home() {
 
         
         if (actor && actor.actorRenderer && actor.skeletonRenderer) {
-          device.queue.writeBuffer (actor.actorRenderer.colorBuffer, 0, Float32Array.from([0.9, 0.5 * (1 + Math.sin(0.25 * globalTimeline.curr_time))/2, 0.5, 1]));
+          device.queue.writeBuffer (actor.actorRenderer.colorBuffer, 0, Float32Array.from([0.9, 0.5, 0.5, 1]));
           actor.actorRenderer.render(pass);
           actor.skeletonRenderer.render (device, pass, canvas, globalTimeline.curr_time);
         }
 
-        
+        // renderTorus(pass);
         pass.end(); 
         // Finish the command buffer and immediately submit it.
         device.queue.submit([encoder.finish()]);
@@ -394,6 +397,7 @@ export default function Home() {
         console.log("Initializing floor");
         initializeFloor();
 
+        initializeTorus(device);
       }
       addAllEvents(canvas, renderLoop, params);
       addMouseEvents(canvas, clickables, renderLoop, params);

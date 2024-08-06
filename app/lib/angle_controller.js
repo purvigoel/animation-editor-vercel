@@ -28,6 +28,23 @@ export function angle_to_rotmat( axis, angle){
     return rotmat;
 }
 
+export function angle_axis_rotmat (axis, angle) {
+    const cos_t = Math.cos (angle);
+    const sin_t = Math.sin (angle);
+    
+    const k_x = axis[0];
+    const k_y = axis[1];
+    const k_z = axis[2];
+
+    return tf.tensor ([
+        [cos_t + k_x * k_x * (1 - cos_t), k_x * k_y * (1 - cos_t) - k_z * sin_t, k_x * k_z * (1 - cos_t) + k_y * sin_t],
+        [k_y * k_x * (1 - cos_t) + k_z * sin_t, cos_t + k_y * k_y * (1 - cos_t), k_y * k_z * (1 - cos_t) - k_x * sin_t],
+        [k_z * k_x * (1 - cos_t) - k_y * sin_t, k_z * k_y * (1 - cos_t) + k_x * sin_t, cos_t + k_z * k_z * (1 - cos_t)]
+    ]);
+
+}
+
+
 export function addAngleControl(body, params) {
     const container = document.getElementById('angleContainer'); // Container to hold the sliders
     const jointConfigs = [

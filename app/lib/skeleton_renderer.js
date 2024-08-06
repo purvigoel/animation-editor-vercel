@@ -315,7 +315,7 @@ export class SkeletonRenderer {
         device.queue.writeBuffer (this.index_buffer, 0, this.sphere.indices);
 
         for (let i = 0; i < 24; i ++) {
-            this.clickables.push(new Clickable([-100, -100, -100], 0.025, i, device));
+            this.clickables.push(new Clickable([-100, -100, -100], 0.025, i, device, this.actor));
         }
 
         this.lineBindGroup = device.createBindGroup({
