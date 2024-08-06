@@ -34,6 +34,8 @@ export default function Home() {
   const [currentFrame, setCurrentFrame] = useState(0);
   const [totalFrames, setTotalFrames] = useState(60);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isPromptPopoverOpen, setIsPromptPopoverOpen] = useState(false);
+  const [prompt, setPrompt] = useState("");
 
   interface GLTF {
     scenes: any[];
@@ -203,10 +205,11 @@ export default function Home() {
       document.addEventListener('interpolateChange', handleInterpolate);
       
       const handleAutoDetailRequest = async () => {
+        console.log("handling autodetail")
         if (actor && actor.skeleton && actor.skeletonRenderer && actor.smpl) {
           console.log("auto detail request");
           try {
-            const response = await fetch('http://localhost:9090/auto-detail-request', {
+            const response = await fetch('http://silver-pg.stanford.edu:9091/auto-detail-request', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -216,6 +219,7 @@ export default function Home() {
             if (!response.ok) {
               throw new Error('Network response was not ok');
             }
+            console.log("here")
             const data = await response.json();
             const pred_poses = tf.tensor(data.data["full_pose"], [60, 24, 3, 3]);
             const pred_trans = tf.tensor(data.data["full_trans"], [ 60, 3]);
@@ -230,6 +234,43 @@ export default function Home() {
       };
       document.addEventListener('autoDetailRequest', handleAutoDetailRequest);
       
+      const handlePromptSubmit = async (e: Event) => {
+        const prompt = (e as CustomEvent).detail.prompt_val;
+        console.log("Prompt submitted:", prompt);
+        if (actor && actor.skeleton && actor.skeletonRenderer && actor.smpl) {
+          console.log("get keyframe request");
+          try {
+            const response = await fetch('http://silver-pg.stanford.edu:9090/keyframe-request', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ detail: 'auto', prompt: prompt, full_pose: actor.smpl.full_pose[0], translation: actor.smpl.global_translation[0] }),
+            });
+            if (!response.ok) {
+              throw new Error('Network response was not ok');
+            }
+            console.log("here")
+            const data = await response.json();
+            const pred_poses = tf.tensor(data.data["full_pose"], [60, 24, 3, 3]);
+            const pred_trans = tf.tensor(data.data["full_trans"], [ 60, 3]);
+            actor.set_keyframe_all(pred_poses, pred_trans);
+            await actor.update_all_poses();
+            actor.skeletonRenderer.update_joints_all();
+
+            const edited_frames = data.data["edited_frames"];
+            console.log(edited_frames);
+            for(var i = 0; i < edited_frames.length; i++){
+              keyframeCreationWidget.createKeyframe_no_event(edited_frames[i]);
+            }
+    
+          } catch (error) {
+            console.error('Error:', error);
+          }
+        }
+      };
+      document.addEventListener('promptSubmit', handlePromptSubmit);
+
       const handleAngleChange = async (angle: number, coord: number) => {
         if (actor && actor.skeletonRenderer && params["clicked"] != null) {
           let joint_id = params["clicked"].id as number;
@@ -417,6 +458,9 @@ export default function Home() {
     console.log("Downloading...");
   }
 
+
+ 
+
   // TODO: Add buttons for each joint, and sync approriately
   const popoverContent = () => {
     return (
@@ -503,6 +547,36 @@ export default function Home() {
     )
   }
 
+  const promptPopoverContent = () => {
+    return (
+      <div className="bg-white text-gray-500 p-3 border border-gray-300 w-50 rounded shadow ml-4">
+        <div className="flex flex-row items-center mb-2">
+          <input
+            type="text"
+            className="w-full bg-white border border-gray-300 rounded p-2"
+            placeholder="Enter prompt"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === ' ') {
+                e.stopPropagation();
+              }
+            }}
+          />
+          <button
+            className="bg-blue-500 text-white font-semibold p-2 rounded ml-2"
+            onClick={(e) => {
+              e.preventDefault();
+              document.dispatchEvent(new CustomEvent('promptSubmit', {detail: {prompt_val: prompt}}));
+            }}
+          >
+            Enter
+          </button>
+        </div>
+      </div>
+    );
+  };
+
 
 
   return (
@@ -526,13 +600,31 @@ export default function Home() {
             </button>
             
           </Popover>
+          <Popover
+            isOpen={isPromptPopoverOpen}
+            positions={['bottom']}
+            content={promptPopoverContent()}
+          >
+            
+            <button
+              className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2"
+              onClick={() => setIsPromptPopoverOpen(!isPromptPopoverOpen)}
+            >
+              Prompt
+              {isPromptPopoverOpen ? <FontAwesomeIcon icon={faAngleDown} className="px-1" /> : <FontAwesomeIcon icon={faAngleUp} className="px-1" />}
+            </button>
+            
+          </Popover>
           <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
             Character Color
           </button>
           <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
             Light Position
           </button>
-          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
+          <button type="button" className="bg-green-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
+            e.preventDefault();
+            document.dispatchEvent(new CustomEvent('autoDetailRequest'));
+          }}  onKeyDown={(e) => e.preventDefault()}>
             Auto Detail
           </button>
           <button type="button" className="bg-blue-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
@@ -598,10 +690,8 @@ export default function Home() {
           }} />
           <div className="ml-3 mr-1">{totalFrames}</div>
         </div>
-
       </div>
-
-
+      
     </div>
   );
 }
