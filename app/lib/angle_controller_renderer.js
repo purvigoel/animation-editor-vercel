@@ -15,13 +15,6 @@ export class AngleControllerRenderer{
         this.ringVerticesXZ = null;
         this.initializeShaderProgram(device);
         this.controller = this.initializeBuffers(device);
-
-        this.rotation = [1, 0, 0, 0, 
-                         0, 1, 0, 0, 
-                         0, 0, 1, 0,
-                         0, 0, 0, 1];
-
-
     }
 
     initializeShaderProgram(device){
@@ -41,8 +34,7 @@ export class AngleControllerRenderer{
         const ringShaderSource = `
           @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
           @group(0) @binding(1) var<uniform> joint_matrix : mat4x4f;
-          @group(0) @binding(2) var<uniform> rotations : mat4x4f;
-          @group(0) @binding(3) var<uniform> hovered : vec4u;
+          @group(0) @binding(2) var<uniform> hovered : vec4u;
 
           struct VertexOutput {
             @builtin(position) Position : vec4f,
@@ -84,8 +76,6 @@ export class AngleControllerRenderer{
           fn vertexMain (@location(0) a_position : vec3f,
                          @builtin(instance_index) instanceIdx : u32) -> VertexOutput  {
             var out : VertexOutput;
-            out.Position = u_matrix * joint_matrix * 
-                           rotations * transforms[instanceIdx] * scale  * vec4f(a_position, 1);
             out.Position = u_matrix * joint_matrix * 
                            transforms[instanceIdx] *  vec4f(a_position, 1);
             out.color = colors[instanceIdx];
@@ -220,9 +210,6 @@ export class AngleControllerRenderer{
             resource: {buffer: this.translationBuffer}
           }, {
             binding: 2,
-            resource: {buffer: this.rotationBuffer}
-          }, {
-            binding: 3,
             resource: {buffer: this.selectedBuffer}
           }]
         })
@@ -342,7 +329,7 @@ export class AngleControllerRenderer{
           0, 0, 0, 1
         ];
         this.rotation = m4.multiply (rotmat_temp, this.rotation);*/
-        device.queue.writeBuffer (this.rotationBuffer, 0, new Float32Array(Array.from(this.rotation)));
+        // device.queue.writeBuffer (this.rotationBuffer, 0, new Float32Array(Array.from(this.rotation)));
         selected[0] = torusDataX.isHovered ? 1 : 0;
         selected[1] = torusDataY.isHovered ? 1 : 0;
         selected[2] = torusDataZ.isHovered ? 1 : 0;

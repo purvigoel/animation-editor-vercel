@@ -195,7 +195,7 @@ export class FloorRenderer {
                         }
                     }
                     visibility /= 25;
-                    if (shadowPos.x < 0 || shadowPos.x > 1 || shadowPos.y < 0 || shadowPos.y > 1) {
+                    if (shadowPos.z > 1 || shadowPos.x < 0 || shadowPos.x > 1 || shadowPos.y < 0 || shadowPos.y > 1) {
                         visibility = 1;
                     } 
 
@@ -345,10 +345,10 @@ export class FloorRenderer {
     }
     initialize_buffers(device) {
         const positions = new Float32Array([
-            -2, -1.15, -2,
-            2, -1.15, -2,
-            -2, -1.15, 2,
-            2, -1.15, 2
+            -4, -1.15, -4,
+            4, -1.15, -4,
+            -4, -1.15, 4,
+            4, -1.15, 4
         ]);
 
         const normals = new Float32Array([

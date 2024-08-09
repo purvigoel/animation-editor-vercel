@@ -117,6 +117,8 @@ export class SMPL{
         
         this.full_pose = tf.tensor(poseArray); // this.full_pose.shape);
         this.full_pose.arraySync();
+
+        // console.log (this.parents);
         
         let single_frame_pose = tf.tensor(poseArray[0][currFrame], [24, 3, 3]).expandDims(0);
         let frame_joints = await lbs_frame(this.betas, single_frame_pose, this.v_template, this.shapedirs, this.posedirs, this.J_regressor, this.parents, this.lbs_weights, false);
@@ -144,7 +146,7 @@ export class SMPL{
         // poseArray[0][currFrame][joint] = rotmat.arraySync();
         
         let single_frame_pose = tf.tensor(poseArray[0][currFrame], [24, 3, 3]).expandDims(0);
-        
+        // console.log (this.parents.arraySync());
         let [frame_joints, A] = await lbs_frame(this.betas, single_frame_pose, this.v_template, this.shapedirs, this.posedirs, this.J_regressor, this.parents, this.lbs_weights, false);
         A = A.arraySync();
         frame_joints = frame_joints.arraySync();

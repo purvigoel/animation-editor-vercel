@@ -44,30 +44,34 @@ export class Clickable {
 
             let cross = vec3.create();
             vec3.cross (cross, pointOnPlane, torus.lastPointOnPlane);
+            let dot = Math.min (1.0, vec3.dot (pointOnPlane, torus.lastPointOnPlane));
+            let theta = Math.acos (dot);
             torus.lastPointOnPlane = pointOnPlane;
+            console.log ("dot: %f", dot);
+            console.log ("theta: %f", theta);
+            let sign = -Math.sign(vec3.dot (cross, torus.normal));
+            return sign * theta;
             if (cross[torus.axis] > 0) {
-                console.log ("Clockwise");
-                return -1;
+                return -theta;
+                //console.log ("Clockwise");
+                //return -1.5 * theta / (Math.PI * 2);
             } else {
-                console.log("Counterclockwise");
-                return 1;
+                return  theta;
+                // console.log("Counterclockwise");
+                //return 1.5 * theta / (Math.PI * 2);
             }
-            console.log ("Cross product: %f, %f, %f", cross[0], cross[1], cross[2]);
-            
-            console.log ("theta: %f", Math.acos(pointOnPlane[2]));
-            if (t >= 0) return true;
         }
         return 1;
     }
 
     checkRayTorusIntersection (rayDir, camera_pos) {
-        let r4 = this.angleController.renderer.rotation;
-        let rotation = mat3.fromValues(r4[0], r4[1], r4[2], r4[4], r4[5], r4[6], r4[8], r4[9], r4[10]);
-        if (checkRayTorusIntersection (torusDataX, rayDir, camera_pos, this.origin, rotation))
+        // let r4 = this.angleController.renderer.rotation;
+        // let rotation = mat3.fromValues(r4[0], r4[1], r4[2], r4[4], r4[5], r4[6], r4[8], r4[9], r4[10]);
+        if (checkRayTorusIntersection (torusDataX, rayDir, camera_pos, this.origin))
             console.log ("hit the X torus");
-        if (checkRayTorusIntersection (torusDataY, rayDir, camera_pos, this.origin, rotation))
+        if (checkRayTorusIntersection (torusDataY, rayDir, camera_pos, this.origin))
             console.log ("hit the Y torus");
-        if (checkRayTorusIntersection (torusDataZ, rayDir, camera_pos, this.origin, rotation))
+        if (checkRayTorusIntersection (torusDataZ, rayDir, camera_pos, this.origin))
             console.log ("hit the Z torus");
     }
 
@@ -111,7 +115,7 @@ export class Clickable {
             if ( !(params.keyframe_inds.indexOf(params["currTime"]) > -1 )) {
                 params.keyframe_creation_widget.createKeyframe(params["currTime"]);
             }
-            const rotmat = this.angleController.update_rotmat (0, sign * 0.1);
+            const rotmat = this.angleController.update_rotmat (0, sign);
             this.actor.update_pose (params["currTime"], rotmat, this.id);
             //this.angleController.update_rotmat (Array.from(rotmat.dataSync()));
             params["draw_once"] = true;
@@ -128,7 +132,7 @@ export class Clickable {
             if ( !(params.keyframe_inds.indexOf(params["currTime"])  > -1)) {
                 params.keyframe_creation_widget.createKeyframe(params["currTime"]);
             }
-            const rotmat = this.angleController.update_rotmat (1, sign * 0.1);
+            const rotmat = this.angleController.update_rotmat (1, sign);
             this.actor.update_pose (params["currTime"], rotmat, this.id);
             // this.angleController.update_rotmat (Array.from(rotmat.dataSync()));
             params["draw_once"] = true;
@@ -145,7 +149,7 @@ export class Clickable {
             if ( !(params.keyframe_inds.indexOf(params["currTime"])  > -1)) {
                 params.keyframe_creation_widget.createKeyframe(params["currTime"]);
             }
-            const rotmat = this.angleController.update_rotmat (2, sign * 0.1);
+            const rotmat = this.angleController.update_rotmat (2, sign);
             this.actor.update_pose (params["currTime"], rotmat, this.id);
             // this.angleController.update_rotmat (Array.from(rotmat.dataSync()));
             params["draw_once"] = true;

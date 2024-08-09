@@ -15,6 +15,10 @@ export class AngleControllerWidget {
         this.show = false;
         this.renderer = new AngleControllerRenderer(this.gl);
 
+        this.children = [];
+        this.parent_rotation = tf.tensor ([[1,0,0],[0,1,0],[0,0,1]]);
+        this.current_rotation = tf.tensor ([[1,0,0],[0,1,0],[0,0,1]]);
+
         this.rotation_angles = [0, 0, 0];
         this.rotation_matrices = [angle_to_rotmat (0, 0),
                                   angle_to_rotmat (1, 0),
@@ -23,46 +27,29 @@ export class AngleControllerWidget {
 
     }
 
-    update_rotmat (axis, angle) {
-        const current_rotmat = this.renderer.rotation;
-        let world_axis = vec3.create();
-        vec3.transformMat4(world_axis, axes[axis], current_rotmat);
-        //console.log(world_axis);
-        let rotmat_ = angle_axis_rotmat (world_axis, angle);
-        let rotmat = rotmat_.arraySync().flat();
-        console.log (rotmat);
-        let rotmat_temp = [
-            rotmat[0], rotmat[1], rotmat[2], 0,
-            rotmat[3], rotmat[4], rotmat[5], 0,
-            rotmat[6], rotmat[7], rotmat[8], 0,
-            0, 0, 0, 1
-        ];
-        console.log (rotmat_temp);
-        console.log (this.renderer.rotation);
-        this.renderer.rotation = m4.multiply (rotmat_temp, this.renderer.rotation);
-        console.log(this.renderer.rotation);
-        return rotmat_;
+    update_children (rotmat) {
+        for (var child of this.children) {
+            child.parent_rotation = tf.matMul (child.parent_rotation, rotmat);
+            child.update_children (rotmat);
+        }
     }
 
-    /* update_rotmat (axis, angle) {
-        // console.log(axis);
-        this.rotation_angles[axis] += angle;
-        // console.log (this.rotation_angles);
-        this.rotation_matrices[axis] = angle_to_rotmat (axis, this.rotation_angles[axis]);
-        
-        let rotmat = tf.matMul(this.rotation_matrices[2], 
-                                 tf.matMul (this.rotation_matrices[1], 
-                                            this.rotation_matrices[0]));
-        this.renderer.rotation = rotmat.arraySync();
-        console.log (rotmat.arraySync());
-        return rotmat;
+    update_rotmat (axis, angle) {
+        const current_rotmat = tf.matMul(this.parent_rotation, this.current_rotation);
+        let world_axis = vec3.create();
+        vec3.transformMat3(world_axis, axes[axis], current_rotmat.arraySync().flat());
+        vec3.normalize (world_axis, world_axis);
+        console.log(world_axis);
+        let rotmat = angle_axis_rotmat (world_axis, angle);
+        this.update_children (rotmat);
 
-    }*/ 
+        this.current_rotation = tf.matMul (this.current_rotation, rotmat);
+        console.log(this.current_rotation );
+        return rotmat;
+    }
 
     render(device, origin, pos){
-        // console.log ("angle_controller_widget render");
         if(this.show){
-            // console.log ("this.show is true; angel controller rendering");
             this.renderer.render(device, origin, pos);
         }
     }

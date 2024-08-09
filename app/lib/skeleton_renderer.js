@@ -318,6 +318,12 @@ export class SkeletonRenderer {
             this.clickables.push(new Clickable([-100, -100, -100], 0.025, i, device, this.actor));
         }
 
+        for (let i = 0; i < this.kinematic_tree.length; i++) {
+            let parent_ind = this.kinematic_tree[i][0];
+            let child_ind = this.kinematic_tree[i][1];
+            this.clickables[parent_ind].angleController.children.push(this.clickables[child_ind].angleController);
+        }
+
         this.lineBindGroup = device.createBindGroup({
             layout : this.linePipeline.getBindGroupLayout(0),
             entries : [{
