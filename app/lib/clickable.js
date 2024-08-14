@@ -1,8 +1,14 @@
 import { vec3, vec4, mat3 } from 'gl-matrix';
 import { AngleControllerWidget } from './angle_controller_widget';
 import { torusDataX, torusDataY, torusDataZ, checkRayTorusIntersection } from './torus.js';
+import { cylinderDataX, cylinderDataY, cylinderDataZ } from './cylinder.js';
 import {angle_to_rotmat} from "./angle_controller";
 import {camera} from "./camera.js";
+
+const shapes = [torusDataX, torusDataY, torusDataZ,
+                cylinderDataX, cylinderDataY, cylinderDataZ];
+const rings = [torusDataX, torusDataY, torusDataZ];
+const arrows = [ cylinderDataX, cylinderDataY, cylinderDataZ ];
 
 export class Clickable {
     constructor(origin, radius, id, device, actor) {
@@ -10,7 +16,7 @@ export class Clickable {
         this.radius = radius;
         this.isHovered = false;
         this.isClicked = false;
-        this.angleController = new AngleControllerWidget(this.origin, device);
+        this.angleController = new AngleControllerWidget(this.origin, device, actor.angleControllerRenderer);
         this.id = id;
         this.actor = actor;
     }
@@ -25,7 +31,7 @@ export class Clickable {
         return discriminant >= 0;
     }    
     
-    checkRayPlaneIntersection (rayDir, camera_pos, torus) {
+    getRayTorusMotion (rayDir, camera_pos, torus) {
         const denom = vec3.dot (rayDir, torus.normal);
         if (Math.abs(denom) > 0.0001) {
             const eyeToCenter = vec3.create();
@@ -51,110 +57,117 @@ export class Clickable {
             console.log ("theta: %f", theta);
             let sign = -Math.sign(vec3.dot (cross, torus.normal));
             return sign * theta;
-            if (cross[torus.axis] > 0) {
-                return -theta;
-                //console.log ("Clockwise");
-                //return -1.5 * theta / (Math.PI * 2);
-            } else {
-                return  theta;
-                // console.log("Counterclockwise");
-                //return 1.5 * theta / (Math.PI * 2);
-            }
         }
         return 1;
     }
 
+    getRayArrowMotion (rayDir, camera_pos, arrow) {
+        const denom = vec3.dot (rayDir, arrow.normal);
+        if (Math.abs(denom) > 0.0001) {
+            const eyeToCenter = vec3.create();
+            vec3.sub (eyeToCenter, this.origin, camera_pos);
+            const t = vec3.dot (eyeToCenter, arrow.normal) / denom;
+
+            const pointOnPlane = vec3.create();
+            vec3.scale (pointOnPlane, rayDir, t);
+            vec3.add (pointOnPlane, pointOnPlane, camera_pos);
+
+            // vec3.sub (pointOnPlane, pointOnPlane, this.origin);
+            // vec3.normalize (pointOnPlane, pointOnPlane);
+
+            let diff = pointOnPlane[arrow.axis] - arrow.lastPointOnPlane[arrow.axis];
+            console.log ("Sign: %d", Math.sign(diff));
+            console.log ("diff: %f", diff);
+            arrow.lastPointOnPlane = pointOnPlane;
+            return diff;
+        }
+
+
+    }
+
     checkRayTorusIntersection (rayDir, camera_pos) {
-        // let r4 = this.angleController.renderer.rotation;
-        // let rotation = mat3.fromValues(r4[0], r4[1], r4[2], r4[4], r4[5], r4[6], r4[8], r4[9], r4[10]);
-        if (checkRayTorusIntersection (torusDataX, rayDir, camera_pos, this.origin))
-            console.log ("hit the X torus");
-        if (checkRayTorusIntersection (torusDataY, rayDir, camera_pos, this.origin))
-            console.log ("hit the Y torus");
-        if (checkRayTorusIntersection (torusDataZ, rayDir, camera_pos, this.origin))
-            console.log ("hit the Z torus");
+        for (let ring of rings) {
+            if (checkRayTorusIntersection (ring, rayDir, camera_pos, this.origin)) {
+                return true;
+            } 
+        }
+        return false;
+    }
+
+    checkRayAxisIntersection (rayDir, camera_pos) {
+        for (let arrow of arrows) {
+            if (checkRayTorusIntersection (arrow, rayDir, camera_pos, this.origin)) {
+                return;      
+            }
+        }
     }
 
 
     widgetInUse () {
-        return (torusDataX.isHovered ||
-            torusDataY.isHovered ||
-            torusDataZ.isHovered);
+        for (let shape of shapes) {
+            if (shape.isHovered) {
+                return true;
+            }
+        }
+        return false;
     }
 
     mouseDownWidget () {
-        if (torusDataX.isHovered) {
-            torusDataX.isDragged = true;
-        }
-        if (torusDataY.isHovered) {
-            torusDataY.isDragged = true;
-        }
-        if (torusDataZ.isHovered) {
-            torusDataZ.isDragged = true;
+        for (let shape of shapes) {
+            if (shape.isHovered) {
+                shape.isDragged = true;
+            }
         }
     }
 
     mouseUpWidget () {
-        torusDataX.isHovered = false;
-        torusDataX.isDragged = false;
-        torusDataY.isHovered = false;
-        torusDataY.isDragged = false;
-        torusDataZ.isHovered = false;
-        torusDataZ.isDragged = false;
+        for (let shape of shapes) {
+            shape.isHovered = false;
+            shape.isDragged = false;
+        }
     }
 
     dragWidget (params, rayDir, camera_pos) {
-        if (torusDataX.isDragged) {
-            camera.locked = true;
-            console.log ("torus X being dragged");
-            var sign = this.checkRayPlaneIntersection (rayDir, camera_pos, torusDataX);
-            //const rotmat = angle_to_rotmat(0, sign * 0.1);
-            if (!(this.id in params.previousValues)) {
-                params.previousValues[this.id] = [0, 0, 0];
-            }
-            if ( !(params.keyframe_inds.indexOf(params["currTime"]) > -1 )) {
-                params.keyframe_creation_widget.createKeyframe(params["currTime"]);
-            }
-            const rotmat = this.angleController.update_rotmat (0, sign);
-            this.actor.update_pose (params["currTime"], rotmat, this.id);
-            //this.angleController.update_rotmat (Array.from(rotmat.dataSync()));
-            params["draw_once"] = true;
-            return true;
+        for (let ring of rings) {
+            if (ring.isDragged) {
+                camera.locked = true;
+                var sign = this.getRayTorusMotion (rayDir, camera_pos, ring);
+                //const rotmat = angle_to_rotmat(0, sign * 0.1);
+                if (!(this.id in params.previousValues)) {
+                    params.previousValues[this.id] = [0, 0, 0];
+                }
+                if ( !(params.keyframe_inds.indexOf(params["currTime"]) > -1 )) {
+                    params.keyframe_creation_widget.createKeyframe(params["currTime"]);
+                }
+                const rotmat = this.angleController.update_rotmat (ring.axis, sign);
+                this.actor.update_pose (params["currTime"], rotmat, this.id);
+                params["draw_once"] = true;
+                return true;
+            }            
         }
-        if (torusDataY.isDragged) {
-            camera.locked = true;
-            console.log ("torus Y being dragged");
-            var sign = this.checkRayPlaneIntersection (rayDir, camera_pos, torusDataY);
-            // const rotmat = angle_to_rotmat(1, sign * 0.1);
-            if (!(this.id in params.previousValues)) {
-                params.previousValues[this.id] = [0, 0, 0];
+
+        for (let arrow of arrows) {
+            if (arrow.isDragged) {
+                camera.locked = true;
+                if (!(this.id in params.previousValues)) {
+                    params.previousValues_trans[this.id] = [0, 0, 0];
+                }
+                if ( !(params.keyframe_inds.indexOf(params["currTime"]) > -1 )) {
+                    params.keyframe_creation_widget.createKeyframe(params["currTime"]);
+                }
+                console.log (arrow.axis);
+                const previousTrans = params.previousValues_trans[this.id][arrow.axis];
+                
+                const translate_by = this.getRayArrowMotion (rayDir, camera_pos, arrow);
+                // params.previousValues_trans[this.id][arrow.axis] = translation;
+              
+                this.actor.update_trans(params["currTime"], translate_by, arrow.axis);
+      
+                params["draw_once"] = true;
+                return true;
             }
-            if ( !(params.keyframe_inds.indexOf(params["currTime"])  > -1)) {
-                params.keyframe_creation_widget.createKeyframe(params["currTime"]);
-            }
-            const rotmat = this.angleController.update_rotmat (1, sign);
-            this.actor.update_pose (params["currTime"], rotmat, this.id);
-            // this.angleController.update_rotmat (Array.from(rotmat.dataSync()));
-            params["draw_once"] = true;
-            return true;
         }
-        if (torusDataZ.isDragged) {
-            camera.locked = true;
-            console.log ("torus Z being dragged");
-            var sign = this.checkRayPlaneIntersection (rayDir, camera_pos, torusDataZ);
-            // const rotmat = angle_to_rotmat(2, sign * 0.1);
-            if (!(this.id in params.previousValues)) {
-                params.previousValues[this.id] = [0, 0, 0];
-            }
-            if ( !(params.keyframe_inds.indexOf(params["currTime"])  > -1)) {
-                params.keyframe_creation_widget.createKeyframe(params["currTime"]);
-            }
-            const rotmat = this.angleController.update_rotmat (2, sign);
-            this.actor.update_pose (params["currTime"], rotmat, this.id);
-            // this.angleController.update_rotmat (Array.from(rotmat.dataSync()));
-            params["draw_once"] = true;
-            return true;
-        }
+
         camera.locked = false;
         return false;
     }

@@ -2,6 +2,7 @@ import {SMPL} from "./SMPL.js";
 import {Skeleton} from "./skeleton.js";
 import {ActorRenderer} from "./actor_renderer.js";
 import {SkeletonRenderer} from "./skeleton_renderer.js";
+import { AngleControllerRenderer } from "./angle_controller_renderer";
 
 export class Actor {
     constructor(tot_frames, device){
@@ -16,6 +17,7 @@ export class Actor {
         this.device = device;
         this.actorRenderer = null; //new ActorRenderer(gl, this);
         this.skeletonRenderer = null; //new SkeletonRenderer(gl, tot_frames, this);
+        this.angleControllerRenderer = null;
        
     }
 
@@ -38,6 +40,7 @@ export class Actor {
         this.bone_indices = null;
         [this.bone_indices, this.bone_weights] = this.get_bone_indices();
 
+        this.angleControllerRenderer = new AngleControllerRenderer(this.device);
         this.actorRenderer = new ActorRenderer(this.device, this);
         this.skeletonRenderer = new SkeletonRenderer(this.device, this.tot_frames, this);
     }

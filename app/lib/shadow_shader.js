@@ -35,7 +35,7 @@ const shaderSource = `
             skinPosition += weight * (getBoneMatrix(jointIndex) * vec4f (a_position, 1.0f) );
         }
 
-        var result = u_lightInfo.light_matrix * skinPosition;
+        var result = u_lightInfo.light_matrix * (skinPosition  + vec4(u_transArray[0].x, u_transArray[0].y, u_transArray[0].z, 0.0));
         return result;
     }    
 `;

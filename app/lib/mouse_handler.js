@@ -9,6 +9,8 @@ let mouseUpHandler = null;
 export let click_id = -1;
 var drag = false;
 
+let transformable_joints = [0, 7, 8, 20, 21];
+
 export function addMouseEvents(canvas, clickables, render, params) {
 
     
@@ -49,7 +51,10 @@ export function addMouseEvents(canvas, clickables, render, params) {
                 var hover = clickable.checkRaySphereIntersection(rayDir, camera_pos);
                 if (clickable.isClicked) {
                     console.log("Checking for ray-torus intersection...");
-                    clickable.checkRayTorusIntersection (rayDir, camera_pos);
+                    if (!clickable.checkRayTorusIntersection (rayDir, camera_pos)) {
+                        if (i in transformable_joints)
+                            clickable.checkRayAxisIntersection (rayDir, camera_pos);
+                    }
                 }
                 if (hover) {
                     clickable.isHovered = true;
@@ -79,6 +84,7 @@ export function addMouseEvents(canvas, clickables, render, params) {
                 if (clickables[i].isHovered) {
                     clickables[i].onClick();
                     clickables[i].isClicked = true;
+                    console.log(i);
                     clickables[i].angleController.show = true;
                     params["draw_once"] = true;
                     clicked = true;

@@ -308,6 +308,7 @@ export default function Home() {
             if( !(params.keyframe_inds.indexOf(globalTimeline.curr_time) > -1)){
               keyframeCreationWidget.createKeyframe(globalTimeline.curr_time);
             }
+            console.log (coord);
             const previousTrans = params.previousValues_trans[joint_id][coord];
             params.previousValues_trans[joint_id][coord] = translation;
             const translate_by = translation - previousTrans;

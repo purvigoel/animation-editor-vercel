@@ -46,8 +46,7 @@ const vertexShaderSource = `
             skinMatrix += weight * (getBoneMatrix(jointIndex));
         }
 
-        var pos = (skinPosition);
-        // + vec4(u_transArray[0].x, u_transArray[0].y, u_transArray[0].z, 0.0)
+        var pos = (skinPosition) + vec4(u_transArray[0].x, u_transArray[0].y, u_transArray[0].z, 0.0);
         output.posFromLight = u_lightInfo.light_matrix * pos;
         var temp : mat4x4f = skinMatrix;
         output.vNormal = mat3x3f (temp[0].xyz, temp[1].xyz, temp[2].xyz) * a_normal;

@@ -6,6 +6,8 @@ import {click_id} from "./mouse_handler.js";
 const matrixSize = 4 * 4;
 const numInstances = 24;
 
+const translatable_joints = [0, 7, 8, 20, 21];
+
 export class SkeletonRenderer {
     constructor(gl, total_frames, actor){
         this.gl = gl;
@@ -397,69 +399,13 @@ export class SkeletonRenderer {
         device.queue.writeBuffer(this.jointTransformsBuffer, 0, this.jointTransformsData);
         device.queue.writeBuffer(this.jointHoveredBuffer, 0, this.jointHoveredData);
         pass.drawIndexed(this.sphere.indices.length, numInstances);
-        /*for (let i = 0; i < this.joint_pos[time].length; i++) {
-            //console.log("i: %d\n", i);
-            const modelMatrix = m4.translation(this.joint_pos[time][i][0], this.joint_pos[time][i][1], this.joint_pos[time][i][2]);
-            const mvpMatrix = m4.multiply(camMat, modelMatrix); 
-            //device.queue.writeBuffer (this.cameraBuffer, 0, new Float32Array(mvpMatrix));
-            this.clickables[i].origin[0] = this.joint_pos[time][i][0];
-            this.clickables[i].origin[1] = this.joint_pos[time][i][1];
-            this.clickables[i].origin[2] =  this.joint_pos[time][i][2];
-            pass.drawIndexed(this.sphere.indices.length);
-        }*/
 
-        
-
-        /*gl.useProgram(this.skel_program);
-        const skel_positionLocation = gl.getAttribLocation(this.skel_program, 'a_position');
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.jointBuffer[time]), gl.STATIC_DRAW);
-        gl.enableVertexAttribArray(skel_positionLocation);
-        gl.vertexAttribPointer(skel_positionLocation, 3, gl.FLOAT, false, 0, 0);
-
-        setCameraMatrix(gl, this.skel_program);
-        gl.drawArrays(gl.LINES, 0, this.jointBuffer[0].length / 3);
-
-        
-        const camMat = getCameraMatrix(gl)
-        const positionLocation = gl.getAttribLocation(this.skel_program, 'a_position');
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.sphereBuffer);
-        gl.enableVertexAttribArray(positionLocation);
-        gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
-
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.sphere.indices, gl.STATIC_DRAW);
-        
-        for (let i = 0; i < this.joint_pos[time].length; i ++) {
-            const modelMatrix = m4.translation(this.joint_pos[time][i][0], this.joint_pos[time][i][1], this.joint_pos[time][i][2]);
-            const mvpMatrix = m4.multiply(camMat, modelMatrix);
-            gl.uniformMatrix4fv(gl.getUniformLocation(this.skel_program, 'u_matrix'), false, mvpMatrix);
-            this.clickables[i].origin[0] = this.joint_pos[time][i][0];
-            this.clickables[i].origin[1] = this.joint_pos[time][i][1];
-            this.clickables[i].origin[2] =  this.joint_pos[time][i][2];
-            
-            if(this.clickables[i].isHovered || this.clickables[i].isClicked){
-                gl.uniform1i(gl.getUniformLocation(this.skel_program, 'is_hovered'), 1);
-            } else {
-                gl.uniform1i(gl.getUniformLocation(this.skel_program, 'is_hovered'), 0);
-            }
-            gl.drawElements(gl.TRIANGLES, this.sphere.indices.length,  gl.UNSIGNED_SHORT, 0);
-            
-        }*/
 
         if (click_id != -1) {
-            this.clickables[click_id].angleController.render(device, pass, this.joint_pos[time][click_id]);
+            let show_translation = translatable_joints.includes (click_id);
+            this.clickables[click_id].angleController.render(device, pass, this.joint_pos[time][click_id], show_translation);
         }
 
-        /*for(let i = 0; i < this.joint_pos[time].length; i++){
-            this.clickables[i].angleController.render(gl, this.clickables[i].origin);
-        }*/
-       /*console.log ("Rendering clickables");*/
-        /*for (let i = 0; i < this.joint_pos[time].length; i++) {
-            this.clickables[i].angleController.render(pass);
-        }*/
     }
 
 }

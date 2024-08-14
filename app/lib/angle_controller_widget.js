@@ -9,11 +9,11 @@ let axes = [ vec3.fromValues(1, 0, 0),
          vec3.fromValues (0, 0, 1) ];
 
 export class AngleControllerWidget {
-    constructor(origin, gl) {
+    constructor(origin, gl, angleControllerRenderer) {
         this.origin = origin;
         this.gl = gl;
         this.show = false;
-        this.renderer = new AngleControllerRenderer(this.gl);
+        this.renderer = angleControllerRenderer;
 
         this.children = [];
         this.parent_rotation = tf.tensor ([[1,0,0],[0,1,0],[0,0,1]]);
@@ -48,9 +48,9 @@ export class AngleControllerWidget {
         return rotmat;
     }
 
-    render(device, origin, pos){
+    render(device, origin, pos, show_translation){
         if(this.show){
-            this.renderer.render(device, origin, pos);
+            this.renderer.render(device, origin, pos, show_translation);
         }
     }
 }
