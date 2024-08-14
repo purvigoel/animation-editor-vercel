@@ -14,7 +14,7 @@ import { FloorRenderer } from "./lib/floor_renderer";
 import {angle_to_rotmat} from "./lib/angle_controller";
 // import { SkeletonRenderer } from "./lib/skeleton_renderer";
 import {shadowDepthTextureView, shadowBindGroup, initLight, setLightMatrix} from "./lib/light.js";
-import {addMouseEvents} from "./lib/mouse_handler.js";
+import {addMouseEvents, undo_log, redo_log} from "./lib/mouse_handler.js";
 import {addAngleControl} from "./lib/angle_controller.js";
 import {KeyframeCreationWidget} from "./lib/keyframe_creation_widget.js";
 import {KeyframeWidget} from "./lib/keyframe_widget.js";
@@ -325,6 +325,53 @@ export default function Home() {
         const { translation, coord } = (e as CustomEvent<{ translation: number, coord: number }>).detail;
         handleTranslationChange(translation, coord);
       });
+
+      const undoChange = () => {
+        console.log("Undo button clicked");
+        if (undo_log.length == 0) {
+          console.log ("Nothing to undo");
+          return;
+        }
+        if (actor && actor.skeletonRenderer) {
+          let undoInfo = undo_log.pop();
+
+      
+          const rotmat = undoInfo.joint.angleController.update_rotmat (undoInfo.axis, -undoInfo.value);
+          actor.update_pose (undoInfo.time, rotmat, undoInfo.joint.id);
+          params["draw_once"] = true;
+
+          redo_log.push (undoInfo);
+
+        }
+
+      }
+
+      document.addEventListener ('undoChange', (e: Event) => {
+        undoChange ();
+      });
+
+      const redoChange = () => {
+        if (redo_log.length == 0) {
+          console.log ("Nothing to redo");
+          return;
+        }
+        if (actor && actor.skeletonRenderer) {
+          let redoInfo = redo_log.pop();
+
+      
+          const rotmat = redoInfo.joint.angleController.update_rotmat (redoInfo.axis, redoInfo.value);
+          actor.update_pose (redoInfo.time, rotmat, redoInfo.joint.id);
+          params["draw_once"] = true;
+
+          undo_log.push (redoInfo);
+
+        }
+
+      }
+
+      document.addEventListener ('redoChange', (e: Event) => {
+        redoChange ();
+      });
   
       keyframeCreationWidget.timeline_div = document.getElementById('timeline'); // Ensure this line is executed after the DOM is loaded
       keyframeCreationWidget.createKeyframe_no_event(0);
@@ -616,11 +663,17 @@ export default function Home() {
             </button>
             
           </Popover>
-          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
-            Character Color
+          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
+            e.preventDefault();
+            document.dispatchEvent(new CustomEvent('undoChange'));
+          }}>
+            Undo
           </button>
-          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
-            Light Position
+          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
+            e.preventDefault();
+            document.dispatchEvent(new CustomEvent('redoChange'));
+          }}>
+            Redo
           </button>
           <button type="button" className="bg-green-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
             e.preventDefault();

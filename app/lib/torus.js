@@ -53,9 +53,10 @@ export const torus = (R = 0.5, r = 0.1, N = 100, n = 50, axis=0) => {
     triangleData: triangles,
     isDragged: false,
     isHovered: false,
+    totalChange: 0,
 
     normal : normal,
-    lastPointOnPlane : vec3.fromValues(1, 0, 0),
+    lastPointOnPlane : null,
     axis: axis
   }; 
 }

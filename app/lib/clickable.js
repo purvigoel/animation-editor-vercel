@@ -4,6 +4,8 @@ import { torusDataX, torusDataY, torusDataZ, checkRayTorusIntersection } from '.
 import { cylinderDataX, cylinderDataY, cylinderDataZ } from './cylinder.js';
 import {angle_to_rotmat} from "./angle_controller";
 import {camera} from "./camera.js";
+import { shadowDepthSampler } from './light.js';
+import { undo_log } from "./mouse_handler.js";
 
 const shapes = [torusDataX, torusDataY, torusDataZ,
                 cylinderDataX, cylinderDataY, cylinderDataZ];
@@ -48,14 +50,18 @@ export class Clickable {
             vec3.sub (pointOnPlane, pointOnPlane, this.origin);
             vec3.normalize (pointOnPlane, pointOnPlane);
 
-            let cross = vec3.create();
-            vec3.cross (cross, pointOnPlane, torus.lastPointOnPlane);
-            let dot = Math.min (1.0, vec3.dot (pointOnPlane, torus.lastPointOnPlane));
-            let theta = Math.acos (dot);
+            let theta = 0;
+            let sign = 0;
+            if (torus.lastPointOnPlane != null) {
+                let cross = vec3.create();
+                vec3.cross (cross, pointOnPlane, torus.lastPointOnPlane);
+                let dot = Math.min (1.0, vec3.dot (pointOnPlane, torus.lastPointOnPlane));
+                theta = Math.acos (dot);
+                sign = -Math.sign(vec3.dot (cross, torus.normal));
+            }
             torus.lastPointOnPlane = pointOnPlane;
-            console.log ("dot: %f", dot);
-            console.log ("theta: %f", theta);
-            let sign = -Math.sign(vec3.dot (cross, torus.normal));
+            //console.log ("dot: %f", dot);
+            // console.log ("theta: %f", theta);
             return sign * theta;
         }
         return 1;
@@ -120,10 +126,18 @@ export class Clickable {
         }
     }
 
-    mouseUpWidget () {
+    mouseUpWidget (params) {
         for (let shape of shapes) {
+            if (shape.isDragged) {
+                undo_log.push ( {joint: this, time: params["currTime"], axis: shape.axis, value: shape.totalChange} );
+            }
+            shape.totalChange = 0;
             shape.isHovered = false;
             shape.isDragged = false;
+        }
+
+        for (let ring of rings) {
+            ring.lastPointOnPlane = null;
         }
 
         for (let arrow of arrows) {
@@ -136,6 +150,7 @@ export class Clickable {
             if (ring.isDragged) {
                 camera.locked = true;
                 var sign = this.getRayTorusMotion (rayDir, camera_pos, ring);
+                ring.totalChange += sign;
                 //const rotmat = angle_to_rotmat(0, sign * 0.1);
                 if (!(this.id in params.previousValues)) {
                     params.previousValues[this.id] = [0, 0, 0];
