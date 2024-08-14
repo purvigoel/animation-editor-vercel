@@ -57,6 +57,8 @@ export const cylinder = (r = 0.1, h = 0.5, N = 50, n = 25, axis=0) => {
     isHovered: false,
     isDragged: false,
     lastPointOnPlane : vec3.fromValues(1, 0, 0),
+    totalChange: 0,
+    transformType: "translation",
     axis: axis,
     normal: normal
   }

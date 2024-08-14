@@ -336,8 +336,12 @@ export default function Home() {
           let undoInfo = undo_log.pop();
 
       
-          const rotmat = undoInfo.joint.angleController.update_rotmat (undoInfo.axis, -undoInfo.value);
-          actor.update_pose (undoInfo.time, rotmat, undoInfo.joint.id);
+          if (undoInfo.type == "rotation") {
+            const rotmat = undoInfo.joint.angleController.update_rotmat (undoInfo.axis, -undoInfo.value);
+            actor.update_pose (undoInfo.time, rotmat, undoInfo.joint.id);
+          } else if (undoInfo.type == "translation") {
+            actor.update_trans (undoInfo.time, -undoInfo.value, undoInfo.axis);
+          }
           params["draw_once"] = true;
 
           redo_log.push (undoInfo);
@@ -358,9 +362,12 @@ export default function Home() {
         if (actor && actor.skeletonRenderer) {
           let redoInfo = redo_log.pop();
 
-      
-          const rotmat = redoInfo.joint.angleController.update_rotmat (redoInfo.axis, redoInfo.value);
-          actor.update_pose (redoInfo.time, rotmat, redoInfo.joint.id);
+          if (redoInfo.type == "rotation") {
+            const rotmat = redoInfo.joint.angleController.update_rotmat (redoInfo.axis, redoInfo.value);
+            actor.update_pose (redoInfo.time, rotmat, redoInfo.joint.id);
+          } else if (redoInfo.type == "translation") {
+            actor.update_trans (redoInfo.time, redoInfo.value, redoInfo.axis);
+          }
           params["draw_once"] = true;
 
           undo_log.push (redoInfo);

@@ -129,7 +129,7 @@ export class Clickable {
     mouseUpWidget (params) {
         for (let shape of shapes) {
             if (shape.isDragged) {
-                undo_log.push ( {joint: this, time: params["currTime"], axis: shape.axis, value: shape.totalChange} );
+                undo_log.push ( {joint: this, time: params["currTime"], axis: shape.axis, value: shape.totalChange, type: shape.transformType} );
             }
             shape.totalChange = 0;
             shape.isHovered = false;
@@ -175,9 +175,9 @@ export class Clickable {
                     params.keyframe_creation_widget.createKeyframe(params["currTime"]);
                 }
                 console.log (arrow.axis);
-                const previousTrans = params.previousValues_trans[this.id][arrow.axis];
                 
                 const translate_by = this.getRayArrowMotion (rayDir, camera_pos, arrow);
+                arrow.totalChange += translate_by;
                 // params.previousValues_trans[this.id][arrow.axis] = translation;
               
                 this.actor.update_trans(params["currTime"], translate_by, arrow.axis);

@@ -54,6 +54,7 @@ export const torus = (R = 0.5, r = 0.1, N = 100, n = 50, axis=0) => {
     isDragged: false,
     isHovered: false,
     totalChange: 0,
+    transformType: "rotation",
 
     normal : normal,
     lastPointOnPlane : null,
