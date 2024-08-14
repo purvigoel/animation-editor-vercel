@@ -52,8 +52,11 @@ export function addMouseEvents(canvas, clickables, render, params) {
                 if (clickable.isClicked) {
                     console.log("Checking for ray-torus intersection...");
                     if (!clickable.checkRayTorusIntersection (rayDir, camera_pos)) {
-                        if (i in transformable_joints)
+                        console.log(i);
+                        if (transformable_joints.includes(i)) {
+                            console.log (i);
                             clickable.checkRayAxisIntersection (rayDir, camera_pos);
+                        }
                     }
                 }
                 if (hover) {

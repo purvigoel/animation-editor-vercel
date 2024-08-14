@@ -125,6 +125,10 @@ export class Clickable {
             shape.isHovered = false;
             shape.isDragged = false;
         }
+
+        for (let arrow of arrows) {
+            arrow.lastPointOnPlane = this.origin;
+        }
     }
 
     dragWidget (params, rayDir, camera_pos) {
