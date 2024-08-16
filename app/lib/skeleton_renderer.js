@@ -320,12 +320,6 @@ export class SkeletonRenderer {
             this.clickables.push(new Clickable([-100, -100, -100], 0.025, i, device, this.actor));
         }
 
-        for (let i = 0; i < this.kinematic_tree.length; i++) {
-            let parent_ind = this.kinematic_tree[i][0];
-            let child_ind = this.kinematic_tree[i][1];
-            this.clickables[parent_ind].angleController.children.push(this.clickables[child_ind].angleController);
-        }
-
         this.lineBindGroup = device.createBindGroup({
             layout : this.linePipeline.getBindGroupLayout(0),
             entries : [{
@@ -403,7 +397,7 @@ export class SkeletonRenderer {
 
         if (click_id != -1) {
             let show_translation = translatable_joints.includes (click_id);
-            this.clickables[click_id].angleController.render(device, pass, this.joint_pos[time][click_id], show_translation);
+            this.actor.angleControllerRenderer.render(device, pass, this.joint_pos[time][click_id], show_translation);
         }
 
     }

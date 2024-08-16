@@ -64,7 +64,7 @@ export class KeyframeWidget {
             thumbPosition += xDiff; 
             thumbPosition = Math.max (sliderRect.left - 10, Math.min (sliderRect.width + sliderRect.left - 10, thumbPosition));
             this.vis_dot.style.left =  `${thumbPosition}px`;
-            this.vis_dot.style.backgroundColor = 'green';
+            // this.vis_dot.style.backgroundColor = 'green';
         });
 
         dot.addEventListener('dragend', (e) => {
@@ -104,7 +104,7 @@ export class KeyframeWidget {
 
     onMouseMove(e) {
         if (!this.isDragging) return;
-        const slider = document.querySelector('#timeline-slider');
+        /* const slider = document.querySelector('#timeline-slider');
         const sliderRect = slider.getBoundingClientRect();
         const newLeft = e.clientX - sliderRect.left;
         const newTime = Math.round((newLeft / sliderRect.width) * this.tot_frames);
@@ -116,7 +116,7 @@ export class KeyframeWidget {
             //const event = new CustomEvent('frameChange', { detail: newTime });
             //document.dispatchEvent(event);
             this.keyframeUpdator.update_keyframe_timing(this.index, newTime, old_time);
-        }
+        } */
     }
 
     onMouseUp() {

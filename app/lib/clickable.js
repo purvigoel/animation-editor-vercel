@@ -1,11 +1,13 @@
 import { vec3, vec4, mat3 } from 'gl-matrix';
-import { AngleControllerWidget } from './angle_controller_widget';
 import { torusDataX, torusDataY, torusDataZ, checkRayTorusIntersection } from './torus.js';
 import { cylinderDataX, cylinderDataY, cylinderDataZ } from './cylinder.js';
 import {angle_to_rotmat} from "./angle_controller";
 import {camera} from "./camera.js";
 import { shadowDepthSampler } from './light.js';
 import { undo_log } from "./mouse_handler.js";
+import { update_rotmat } from "./angle_controller";
+
+import * as tf from '@tensorflow/tfjs';
 
 const shapes = [torusDataX, torusDataY, torusDataZ,
                 cylinderDataX, cylinderDataY, cylinderDataZ];
@@ -18,9 +20,9 @@ export class Clickable {
         this.radius = radius;
         this.isHovered = false;
         this.isClicked = false;
-        this.angleController = new AngleControllerWidget(this.origin, device, actor.angleControllerRenderer);
         this.id = id;
         this.actor = actor;
+        this.rotmat = null;
     }
 
     checkRaySphereIntersection(rayDir, camera_pos) {
@@ -118,10 +120,28 @@ export class Clickable {
         return false;
     }
 
-    mouseDownWidget () {
+    mouseDownWidget (params) {
         for (let shape of shapes) {
             if (shape.isHovered) {
                 console.time();
+
+                if (shape.transformType == "rotation") {
+                    // Calculate parent rotation matrix here so we don't have to recompute 4 every drag.
+                    let pose = this.actor.smpl.full_pose;
+                    let parents = this.actor.smpl.parents.arraySync();
+                    // console.log(parents);
+
+                    let current = this.id;
+                    this.rotmat = tf.tensor([[1,0,0],[0,1,0],[0,0,1]]);
+                    const frame = params["currTime"];
+                    while (current != -1) {
+                        this.rotmat = tf.matMul (tf.tensor(pose[0][frame][current], [3, 3]), this.rotmat);
+                        current = parents[current];
+                    }
+                }
+
+
+
                 shape.isDragged = true;
             }
         }
@@ -161,7 +181,7 @@ export class Clickable {
                 if ( !(params.keyframe_inds.indexOf(params["currTime"]) > -1 )) {
                     params.keyframe_creation_widget.createKeyframe(params["currTime"]);
                 } 
-                const rotmat = this.angleController.update_rotmat (ring.axis, sign);
+                const rotmat = update_rotmat (ring.normal, sign, this.rotmat);
                 this.actor.update_pose (params["currTime"], rotmat, this.id);
                 params["draw_once"] = true;
                 return true;
@@ -194,20 +214,5 @@ export class Clickable {
         return false;
     }
 
-    /*checkRayTorusIntersection(rayDir, camera_pos) {
-        // Offset
-       // const camera_pos = vec3.add (camera_pos, this.origin);
-        // Check torus X
-
-        // Check torus Y
-
-        // Check torus Z
-        
-    }*/
-    
-
-    onClick() {
-        this.angleController.show = true;
-    }
 }
 

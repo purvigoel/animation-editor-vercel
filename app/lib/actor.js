@@ -17,7 +17,7 @@ export class Actor {
         this.device = device;
         this.actorRenderer = null; //new ActorRenderer(gl, this);
         this.skeletonRenderer = null; //new SkeletonRenderer(gl, tot_frames, this);
-        this.angleControllerRenderer = null;
+        this.angleControllerWidget = null;
        
     }
 
@@ -40,7 +40,7 @@ export class Actor {
         this.bone_indices = null;
         [this.bone_indices, this.bone_weights] = this.get_bone_indices();
 
-        this.angleControllerRenderer = new AngleControllerRenderer(this.device);
+        this.angleControllerRenderer = new AngleControllerRenderer (this.device);
         this.actorRenderer = new ActorRenderer(this.device, this);
         this.skeletonRenderer = new SkeletonRenderer(this.device, this.tot_frames, this);
     }
@@ -108,7 +108,7 @@ export class Actor {
     }
 
     get_skel_at_time(time){
-        console.log (time);
+        //console.log (time);
         return [this.skeleton.A[time].flat(), this.skeleton.translation[0][time].flat()];
     }
 
