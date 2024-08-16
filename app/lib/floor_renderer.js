@@ -357,10 +357,10 @@ export class FloorRenderer {
     }
     initialize_buffers(device) {
         const positions = new Float32Array([
-            -2, -1.15, -2,
-            2, -1.15, -2,
-            -2, -1.15, 2,
-            2, -1.15, 2
+            -3, -1.15, -3,
+            3, -1.15, -3,
+            -3, -1.15, 3,
+            3, -1.15, 3
         ]);
 
         const normals = new Float32Array([

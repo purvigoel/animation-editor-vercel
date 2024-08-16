@@ -5,7 +5,7 @@ import {lbs, lbs_update} from "./lbs_batched.js";
 import {lbs_frame} from "./lbs_frame.js";
 
 export class SMPL{
-    constructor (){
+    constructor (num_frames){
         this.J_regressor = null;
         this.v_template = null;
         this.shapedirs = null;
@@ -20,6 +20,7 @@ export class SMPL{
         this.curr_As = null;
         this.v_shaped = null;
         this.skinned_J = null;
+        this.num_frames = num_frames;
         this.n = new npyjs();
     }
 
@@ -48,13 +49,15 @@ export class SMPL{
     }
 
     async forward( ){
-        let full_pose = await this.n.load( "/data/identity.npy" );
+        let full_pose = await this.n.load( "/data/identity.npy" ); //identity
         full_pose = tf.tensor(full_pose.data, full_pose.shape);
         let vertices2joints_precompute = await this.n.load("/data/identity_vertices2joints_precompute.npy")
         vertices2joints_precompute = tf.tensor(vertices2joints_precompute.data, vertices2joints_precompute.shape);
 
-        let global_translation = await this.n.load("/data/translation.npy");
-        global_translation = tf.tensor(global_translation.data, global_translation.shape);
+        let global_translation = await this.n.load("/data/translation.npy"); //translatoin
+        
+        global_translation = tf.tensor(global_translation.data, [ 3, this.num_frames]).transpose().expandDims(0);;
+        console.log(global_translation.arraySync());
         this.global_translation = global_translation.arraySync();
 
         this.full_pose = full_pose.clone().arraySync();
@@ -65,9 +68,10 @@ export class SMPL{
         this.v_shaped = mesh;
         
         let global_translation_expanded = this.global_translation;//.arraySync();
-        console.log(global_translation.shape)
+        
         global_translation_expanded = global_translation_expanded[0];
-        global_translation_expanded = tf.tensor(global_translation_expanded, [60, 1, 3]);
+        global_translation_expanded = tf.tensor(global_translation_expanded, [this.num_frames, 1, 3]);
+        console.log(global_translation_expanded)
         this.curr_joints = tf.add(this.curr_joints, global_translation_expanded);
         
         return [this.curr_joints, mesh, this.curr_As, this.global_translation];
@@ -81,7 +85,7 @@ export class SMPL{
         
         let global_translation_expanded = this.global_translation;//.arraySync();
         global_translation_expanded = global_translation_expanded[0];
-        global_translation_expanded = tf.tensor(global_translation_expanded, [60, 1, 3]);
+        global_translation_expanded = tf.tensor(global_translation_expanded, [this.num_frames, 1, 3]);
         this.curr_joints = tf.add(this.curr_joints, global_translation_expanded);
 
         return [this.curr_joints, this.curr_As];
@@ -96,10 +100,10 @@ export class SMPL{
 
         let global_translation_expanded = this.global_translation; //.arraySync();
         global_translation_expanded = global_translation_expanded[0];
-        global_translation_expanded = tf.tensor(global_translation_expanded, [60, 1, 3]);
+        global_translation_expanded = tf.tensor(global_translation_expanded, [this.num_frames, 1, 3]);
 
         old_global_translation = old_global_translation[0];
-        old_global_translation = tf.tensor(old_global_translation, [60, 1, 3]); 
+        old_global_translation = tf.tensor(old_global_translation, [this.num_frames, 1, 3]); 
 
         this.curr_joints = tf.add(this.curr_joints, tf.sub(global_translation_expanded, old_global_translation ));
         
@@ -123,11 +127,11 @@ export class SMPL{
         this.curr_joints = this.curr_joints.arraySync();
         this.curr_joints[currFrame] = frame_joints[0];
 
-        this.curr_joints = tf.tensor(this.curr_joints, [60, 24, 3]);
+        this.curr_joints = tf.tensor(this.curr_joints, [this.num_frames, 24, 3]);
 
         let global_translation_expanded = this.global_translation; //.arraySync();
         global_translation_expanded = global_translation_expanded[0];
-        global_translation_expanded = tf.tensor(global_translation_expanded, [60, 1, 3]);
+        global_translation_expanded = tf.tensor(global_translation_expanded, [this.num_frames, 1, 3]);
         this.curr_joints = tf.add(this.curr_joints, global_translation_expanded);
 
         return this.curr_joints;
@@ -150,17 +154,17 @@ export class SMPL{
         this.curr_As = this.curr_As.arraySync();
         this.curr_As[currFrame] = A[0];
 
-        this.curr_As = tf.tensor(this.curr_As, [60, 24, 4, 4]);
+        this.curr_As = tf.tensor(this.curr_As, [this.num_frames, 24, 4, 4]);
 
         this.curr_joints = this.curr_joints.arraySync();
 
         this.curr_joints[currFrame] = frame_joints[0];
 
-        this.curr_joints = tf.tensor(this.curr_joints, [60, 24, 3]);
+        this.curr_joints = tf.tensor(this.curr_joints, [this.num_frames, 24, 3]);
 
         let global_translation_expanded = this.global_translation; //.arraySync();
         global_translation_expanded = global_translation_expanded[0];
-        global_translation_expanded = tf.tensor(global_translation_expanded, [60, 1, 3]);
+        global_translation_expanded = tf.tensor(global_translation_expanded, [this.num_frames, 1, 3]);
         this.curr_joints = tf.add(this.curr_joints, global_translation_expanded);
 
         return [this.curr_joints, this.curr_As];

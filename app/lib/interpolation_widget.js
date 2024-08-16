@@ -56,7 +56,7 @@ export class InterpolationWidget{
 
     async interpolate_all_frames(actor){
         this.params.keyframe_inds.sort(function(a, b){return a-b});
-        
+
         for (let i = 0; i < this.params.keyframe_inds.length-1; i++) {
             console.log(this.params.keyframe_inds[i],this.params.keyframe_inds[i+1] )
             await this.interpolate_between_keyframes(actor, this.params.keyframe_inds[i], this.params.keyframe_inds[i+1], false);

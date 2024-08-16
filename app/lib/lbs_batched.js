@@ -5,7 +5,8 @@ export async function lbs(betas, pose, vertices2joints_precompute, v_template, s
     
     const batch_size = Math.max(betas.shape[0], pose.shape[0]);
     
-    betas = betas.tile([60, 1]);
+    const num_frames = pose.shape[0];
+    betas = betas.tile([num_frames, 1]);
 
     // Add shape contribution
     let v_shaped = v_template.add(blendShapes(betas, shapedirs));
@@ -99,6 +100,11 @@ function transformMat(R, t) {
 }
 
 async function batchRigidTransform(rot_mats, joints, parents) {
+    const num_joints = joints.shape[1];
+    let tot_frames = 100;
+    const first_sample = joints.slice([0, 0, 0], [1, num_joints, 3]);
+    joints = first_sample.tile([tot_frames, 1, 1]);
+
     let joints_expanded = joints.clone();
     //let joints_expanded = tf.tensor(joints.dataSync(), [3, 24]).transpose();
     
@@ -109,11 +115,9 @@ async function batchRigidTransform(rot_mats, joints, parents) {
     // Get the parents data as a nested array
     let parentsData = parents.arraySync();
 
-    // Get the number of joints from the original 'joints' tensor
-    const num_joints = joints.shape[1];
-
+    
     //Iterate through each joint starting from the second one (index 1)
-    for(let fr = 0; fr < 60; fr ++){
+    for(let fr = 0; fr < tot_frames; fr ++){
         for (let j = 1; j < joints_expanded.shape[1]; j++) {
             // Calculate the relative position of the current joint to its parent joint
             let relative_joint = tensorData[fr][j].map((value, index) => value - tensorData[fr][parentsData[j]][index]);
@@ -128,6 +132,8 @@ async function batchRigidTransform(rot_mats, joints, parents) {
 
     rel_joints = rel_joints_tensor;
    
+    console.log(rot_mats.shape, tot_frames);
+    console.log(rel_joints.shape);
     let transforms_mat = transformMat(
         rot_mats.reshape([-1, 3, 3]),
         rel_joints.reshape([-1, 3, 1])
