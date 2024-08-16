@@ -30,9 +30,9 @@ import {camera, initCamera, setCameraMatrix, getViewProjectionMatrix, adjustCame
 export default function Home() {
 
   const isInitializedRef = useRef(false); // useRef to persist state across renders
-
+  const num_frames = 60;
   const [currentFrame, setCurrentFrame] = useState(0);
-  const [totalFrames, setTotalFrames] = useState(60);
+  const [totalFrames, setTotalFrames] = useState(num_frames);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isPromptPopoverOpen, setIsPromptPopoverOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
@@ -61,6 +61,7 @@ export default function Home() {
     clicked: { id: string | number } | null;
     keyframe_inds: number[];
     keyframe_widgets: KeyframeWidget[];
+    actor: Actor | null;
     keyframe_creation_widget: KeyframeCreationWidget | null;
   }
 
@@ -74,10 +75,11 @@ export default function Home() {
     clicked: null,
     keyframe_inds: [],
     keyframe_widgets: [],
+    actor: null,
     keyframe_creation_widget: null
   };
 
-  const tot_frames = 60;
+  const tot_frames = num_frames;
   
   let globalTimeline = new Timeline(params, tot_frames);
   let keyframeCreationWidget = new KeyframeCreationWidget(params, tot_frames);
@@ -176,9 +178,10 @@ export default function Home() {
         console.log("initializing actor");
         actor = new Actor(tot_frames, device);
         await actor.init();
-        if(actor.skeletonRenderer){
+        if(actor.skeletonRenderer && actor){
           clickables.push(... actor.skeletonRenderer.getClickables());
           params["clickables"] = clickables;
+          params["actor"] = actor;
         }
 
       };

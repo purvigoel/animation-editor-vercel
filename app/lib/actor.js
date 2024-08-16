@@ -22,7 +22,7 @@ export class Actor {
     }
 
     async init(){
-        let smpl = new SMPL();
+        let smpl = new SMPL(this.tot_frames);
         await smpl.init_smpl();
 
         let [joints, mesh, A, trans] = await smpl.forward();

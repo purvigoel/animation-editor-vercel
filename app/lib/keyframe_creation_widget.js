@@ -1,4 +1,5 @@
 import { KeyframeWidget } from './keyframe_widget';
+import * as tf from "@tensorflow/tfjs";
 
 export class KeyframeCreationWidget {
   constructor(params, tot_frames) {
@@ -13,11 +14,14 @@ export class KeyframeCreationWidget {
 
   createKeyframe(time) {
     console.log ("Keyframe created at time %d", time);
-    let keyframe_widget = new KeyframeWidget(time, this.tot_frames, this.params);
+    //let keyframe_widget = new KeyframeWidget(time, this.tot_frames, this.params);
+    let index = this.keyframes.length;
+    let keyframe_widget = new KeyframeWidget(time, this.tot_frames, this.params, index, this);
     keyframe_widget.showKeyframeOnTimeline(this.timeline_div);
     this.keyframes.push(keyframe_widget);
     this.params.keyframe_widgets.push(keyframe_widget);
     this.params.keyframe_inds.push(time);
+    console.log(this.params.keyframe_inds)
 
   }
 
@@ -27,14 +31,24 @@ export class KeyframeCreationWidget {
   }
 
   createKeyframe_no_event(time){
-    let keyframe_widget = new KeyframeWidget(time, this.tot_frames, this.params);
+    let index = this.keyframes.length;
+    let keyframe_widget = new KeyframeWidget(time, this.tot_frames, this.params, index, this);
     keyframe_widget.showKeyframeOnTimeline_no_event( this.timeline_div, time);
     this.keyframes.push(keyframe_widget);
     this.params.keyframe_widgets.push(keyframe_widget);
     this.params.keyframe_inds.push(time);
   }
 
-  
+  update_keyframe_timing(index, new_time, old_time){
+    for(var i = 0; i < this.params.keyframe_inds.length; i++){
+      if(this.params.keyframe_inds[i] == old_time){
+        this.params.keyframe_inds[i] = new_time;
+      }
+    }
+    this.keyframes[index].time = new_time;
+    let [keyframe_pose, keyframe_trans] = this.params.actor.get_keyframe_at_time(old_time);
+    this.params.actor.set_keyframe_at_time(new_time, tf.tensor(keyframe_pose), tf.tensor(keyframe_trans));
+  }
 
 }
 
