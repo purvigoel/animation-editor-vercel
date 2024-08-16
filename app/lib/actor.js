@@ -108,6 +108,7 @@ export class Actor {
     }
 
     get_skel_at_time(time){
+        console.log (time);
         return [this.skeleton.A[time].flat(), this.skeleton.translation[0][time].flat()];
     }
 
@@ -117,6 +118,18 @@ export class Actor {
 
     get_keyframe_at_time(time){
         return [this.smpl.full_pose[0][time], this.skeleton.translation[0][time].flat()];
+    }
+
+    transfer_keyframes (oldTime, newTime) {
+        this.skeleton.A[newTime] = this.skeleton.A[oldTime];
+        this.skeleton.translation[0][newTime] = this.skeleton.translation[0][oldTime];
+        this.skeleton.J[newTime] = this.skeleton.J[oldTime];
+
+        this.skeletonRenderer.jointBuffer[newTime] = this.skeletonRenderer.jointBuffer[oldTime];
+        this.skeletonRenderer.joint_pos[newTime] = this.skeletonRenderer.joint_pos[oldTime];
+
+        this.smpl.full_pose[0][newTime] = this.smpl.full_pose[0][oldTime];
+        this.smpl.global_translation[0][newTime] = this.smpl.global_translation[0][oldTime];
     }
 
     set_keyframe_at_time(time, keyframe, trans){

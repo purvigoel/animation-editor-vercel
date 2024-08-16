@@ -39,12 +39,12 @@ export class AngleControllerWidget {
         let world_axis = vec3.create();
         vec3.transformMat3(world_axis, axes[axis], current_rotmat.arraySync().flat());
         vec3.normalize (world_axis, world_axis);
-        console.log(world_axis);
+        //console.log(world_axis);
         let rotmat = angle_axis_rotmat (world_axis, angle);
         this.update_children (rotmat);
 
         this.current_rotation = tf.matMul (this.current_rotation, rotmat);
-        console.log(this.current_rotation );
+        //console.log(this.current_rotation );
         return rotmat;
     }
 

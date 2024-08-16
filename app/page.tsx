@@ -196,6 +196,21 @@ export default function Home() {
         };
 
       document.addEventListener('frameChange', (e: Event) => handleFrameChange((e as CustomEvent).detail));
+
+      const handleFrameShift = (oldFrame: number, newFrame: number) => {
+        console.log ("oldFrame: %d, newFrame: %d", oldFrame, newFrame);
+        actor?.transfer_keyframes (oldFrame, newFrame);
+        if (globalTimeline) {
+          globalTimeline.curr_time = newFrame;
+          params["currTime"] = newFrame;
+          params["draw_once"] = true;
+          keyframeCreationWidget.shiftKeyframe(oldFrame, newFrame);
+        }
+      };
+      document.addEventListener('frameShift', (e: Event) => {
+        const { oldFrame, newFrame } = (e as CustomEvent<{ oldFrame: number, newFrame: number }>).detail;
+        handleFrameShift(oldFrame, newFrame);
+      });
       
       const handleInterpolate = async () => {
         if (actor) {
@@ -741,6 +756,11 @@ export default function Home() {
           <input id="timeline-slider" type="range" className="w-full bg-white" min={0} max={totalFrames} value={currentFrame} onChange={(e) => {
             const frame = parseInt(e.target.value, 10);
             if (!isNaN(frame)) {
+              console.log(currentFrame);
+              console.log(frame);
+              if (frame == currentFrame) {
+                console.log ("Frame current");
+              }
               const frame_constrained = frame >= totalFrames ? (totalFrames - 1) : frame < 0 ? 0 : frame;
               setCurrentFrame(frame_constrained);
               const event = new CustomEvent('frameChange', { detail: frame_constrained });

@@ -21,7 +21,7 @@ export function initLight(device, canvas) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   });
   shadowDepthTexture = device.createTexture({
-    size: [4096, 4096, 1],
+    size: [8192, 8192, 1],
     format: "depth32float",
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   });
@@ -70,7 +70,7 @@ export function setLightMatrix(device, canvas) {
 
 export function getLightMatrix(canvas){
   // Define a simple projection matrix
-  const fieldOfViewRadians = Math.PI * 0.25;
+  const fieldOfViewRadians = Math.PI * 0.55;
   const aspect = canvas.clientWidth / canvas.clientHeight;
   const zNear = 0.5;
   const zFar = 7;

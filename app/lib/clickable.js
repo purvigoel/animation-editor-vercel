@@ -121,6 +121,7 @@ export class Clickable {
     mouseDownWidget () {
         for (let shape of shapes) {
             if (shape.isHovered) {
+                console.time();
                 shape.isDragged = true;
             }
         }
@@ -129,6 +130,8 @@ export class Clickable {
     mouseUpWidget (params) {
         for (let shape of shapes) {
             if (shape.isDragged) {
+                console.log ("Joint %d was edited in keyframe %d", this.id, params["currTime"]);
+                console.timeEnd();
                 undo_log.push ( {joint: this, time: params["currTime"], axis: shape.axis, value: shape.totalChange, type: shape.transformType} );
             }
             shape.totalChange = 0;
@@ -157,7 +160,7 @@ export class Clickable {
                 }
                 if ( !(params.keyframe_inds.indexOf(params["currTime"]) > -1 )) {
                     params.keyframe_creation_widget.createKeyframe(params["currTime"]);
-                }
+                } 
                 const rotmat = this.angleController.update_rotmat (ring.axis, sign);
                 this.actor.update_pose (params["currTime"], rotmat, this.id);
                 params["draw_once"] = true;
@@ -173,8 +176,8 @@ export class Clickable {
                 }
                 if ( !(params.keyframe_inds.indexOf(params["currTime"]) > -1 )) {
                     params.keyframe_creation_widget.createKeyframe(params["currTime"]);
-                }
-                console.log (arrow.axis);
+                } 
+                //console.log (arrow.axis);
                 
                 const translate_by = this.getRayArrowMotion (rayDir, camera_pos, arrow);
                 arrow.totalChange += translate_by;
