@@ -1,11 +1,18 @@
-import { getViewProjectionMatrix } from "./camera.js";
+import { getViewProjectionMatrix, camera } from "./camera.js";
 import {m4} from "./m4.js";
 import { vec3, vec4 } from 'gl-matrix';
 import { AngleControllerRenderer } from './angle_controller_renderer.js';
 
 let mouseMoveHandler = null;
 let mouseDownHandler = null;
+let mouseUpHandler = null;
 export let click_id = -1;
+var drag = false;
+
+let transformable_joints = [0, 7, 8, 20, 21];
+
+export let undo_log = [];
+export let redo_log = [];
 
 export function addMouseEvents(canvas, clickables, render, params) {
 
@@ -33,9 +40,28 @@ export function addMouseEvents(canvas, clickables, render, params) {
             const rayDir = vec3.fromValues(worldCoords[0], worldCoords[1], worldCoords[2]);
             vec3.normalize(rayDir, rayDir);
 
+            if (params["clicked"] != null) {
+                if (params["clicked"].dragWidget(params, rayDir, camera_pos)) {
+                    return;
+                }
+                /*if (drag) {
+                    console.log ("dragging widgett");
+                }*/
+            }
+
             for (var i = 0; i < clickables.length; i++) {
                 var clickable = clickables[i];
                 var hover = clickable.checkRaySphereIntersection(rayDir, camera_pos);
+                if (clickable.isClicked) {
+                    //console.log("Checking for ray-torus intersection...");
+                    if (!clickable.checkRayTorusIntersection (rayDir, camera_pos)) {
+                        //console.log(i);
+                        if (transformable_joints.includes(i)) {
+                            console.log (i);
+                            clickable.checkRayAxisIntersection (rayDir, camera_pos);
+                        }
+                    }
+                }
                 if (hover) {
                     clickable.isHovered = true;
                     params["draw_once"] = true;
@@ -43,6 +69,7 @@ export function addMouseEvents(canvas, clickables, render, params) {
                 } else {
                     clickable.isHovered = false;
                 }
+                
             }
         };
     }
@@ -51,10 +78,19 @@ export function addMouseEvents(canvas, clickables, render, params) {
         mouseDownHandler = function(event) {
             console.log("Mouse down");
             let clicked = false;
+            drag = true;
+            if (params["clicked"] != null) {
+                if (params["clicked"].widgetInUse()) {
+                    params["clicked"].mouseDownWidget();
+                    console.log ("angle widget in use");
+                    return;
+                }
+            }
             for (var i = 0; i < clickables.length; i++) {
                 if (clickables[i].isHovered) {
                     clickables[i].onClick();
                     clickables[i].isClicked = true;
+                    console.log(i);
                     clickables[i].angleController.show = true;
                     params["draw_once"] = true;
                     clicked = true;
@@ -82,13 +118,24 @@ export function addMouseEvents(canvas, clickables, render, params) {
         };
     }
 
-    if (params["pause"]) {
+    if (!mouseUpHandler) {
+        mouseUpHandler = function(event) {
+            drag = false;
+            camera.locked = false;
+            if (params["clicked"] != null) {
+                params["clicked"].mouseUpWidget(params);
+            }
+        }
+    }
 
+    if (params["pause"]) {
         canvas.addEventListener('mousemove', mouseMoveHandler);
         canvas.addEventListener('mousedown', mouseDownHandler);
+        canvas.addEventListener('mouseup', mouseUpHandler);
     } else {
         canvas.removeEventListener('mousemove', mouseMoveHandler);
         canvas.removeEventListener('mousedown', mouseDownHandler);
+        canvas.removeEventListener('mouseup', mouseUpHandler);
     }
 }
 

@@ -7,6 +7,7 @@ export let camera = {
     radius: 2.0,
     lookAt: [0, 0, 0],
     isDragging: false, 
+    locked: false,
     lastMousePosition:{ x: 0, y: 0 },
 };
 
@@ -30,7 +31,7 @@ function clamp(x, a, b) {
 
 export function getCameraMatrix(canvas){
     // Define a simple projection matrix
-    const fieldOfViewRadians = Math.PI * 0.5;
+    const fieldOfViewRadians = Math.PI * 0.25;
     const aspect = canvas.clientWidth / canvas.clientHeight;
     const zNear = 0.1;
     const zFar = 100;
@@ -61,7 +62,7 @@ export function getCameraMatrix(canvas){
 
 export function getViewProjectionMatrix(canvas){
     // Define a simple projection matrix
-    const fieldOfViewRadians = Math.PI * 0.5;
+    const fieldOfViewRadians = Math.PI * 0.25;
     const aspect = canvas.clientWidth / canvas.clientHeight;
     const zNear = 0.1;
     const zFar = 100;

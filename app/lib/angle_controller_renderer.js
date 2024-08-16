@@ -1,7 +1,10 @@
 import { cameraBuffer, getCameraMatrix } from "./camera";
+import { torusDataX, torusDataY, torusDataZ } from './torus.js';
+import { cylinderDataX, cylinderDataY, cylinderDataZ } from './cylinder.js';
 import {m4} from "./m4.js";
 
 let N_AXES = 3;
+export let selected = [0, 0, 0, 0];
 
 export class AngleControllerRenderer{
     constructor(device){
@@ -13,39 +16,9 @@ export class AngleControllerRenderer{
         this.ringVerticesXZ = null;
         this.initializeShaderProgram(device);
         this.controller = this.initializeBuffers(device);
-
-
     }
 
     initializeShaderProgram(device){
-        /*const arrowVertexShaderSource = `
-        attribute vec4 a_position;
-        uniform mat4 u_mvpMatrix;
-        
-        
-        void main() {
-          gl_Position = u_mvpMatrix * a_position;
-        }`;  // Add your arrow vertex shader source here
-        const arrowFragmentShaderSource = `
-        precision mediump float;
-        uniform vec4 u_color;
-        void main() {
-          gl_FragColor = u_color; //vec4(1.0, 0.0, 0.0, 1.0);  // Red color for arrows
-        }`;  // Add your arrow fragment shader source here
-
-        const ringVertexShaderSource = `
-        attribute vec4 a_position;
-        uniform mat4 u_mvpMatrix;
-        
-        void main() {
-          gl_Position = u_mvpMatrix * a_position;
-        }`;  // Add your ring vertex shader source here
-        const ringFragmentShaderSource = `
-        precision mediump float;
-
-        void main() {
-        gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);  // Green color for rings
-        }`;  // Add your ring fragment shader source here*/
 
         const arrowShaderSource = `
           @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
@@ -62,10 +35,12 @@ export class AngleControllerRenderer{
         const ringShaderSource = `
           @group(0) @binding(0) var<uniform> u_matrix : mat4x4f;
           @group(0) @binding(1) var<uniform> joint_matrix : mat4x4f;
+          @group(0) @binding(2) var<uniform> hovered : vec4u;
 
           struct VertexOutput {
             @builtin(position) Position : vec4f,
-            @location(0) color : vec4f
+            @location(0) color : vec4f,
+            @location(1) @interpolate(flat) isHovered : u32
           }
 
           var<private> colors : array<vec4f, 3> = array (
@@ -102,14 +77,20 @@ export class AngleControllerRenderer{
           fn vertexMain (@location(0) a_position : vec3f,
                          @builtin(instance_index) instanceIdx : u32) -> VertexOutput  {
             var out : VertexOutput;
-            out.Position = u_matrix * joint_matrix * transforms[instanceIdx] * scale  * vec4f(a_position, 1);
+            out.Position = u_matrix * joint_matrix * 
+                           transforms[instanceIdx] *  vec4f(a_position, 1);
             out.color = colors[instanceIdx];
+            out.isHovered = hovered[instanceIdx];
             return out;
           }
 
           @fragment
           fn fragmentMain ( in : VertexOutput ) -> @location(0) vec4f  {
-            return in.color;
+            var col = in.color;
+            if (in.isHovered == 1) {
+              col = vec4f (1.0, 1.0, 0.0, 1.0);
+            }
+            return col;
           }
         `
         const arrowShaderModule = device.createShaderModule({
@@ -145,9 +126,9 @@ export class AngleControllerRenderer{
                   format: navigator.gpu.getPreferredCanvasFormat()
               }]
           },
-          primitive : {
+         /* primitive : {
             topology: "line-strip"
-          },
+          },*/
           depthStencil: {
               depthWriteEnabled: true,
               depthCompare: "always",
@@ -188,9 +169,9 @@ export class AngleControllerRenderer{
                 depthCompare: "always",
                 format: "depth24plus"
             },
-            primitive : {
+            /*primitive : {
               topology: "line-strip"
-            },
+            },*/
             multisample: {
                 count: 4,
             }
@@ -201,14 +182,37 @@ export class AngleControllerRenderer{
           size: (4 * 4) * 4,
           usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
+        this.rotationBuffer = device.createBuffer({
+          label: "joint rotation buffer",
+          size: (4 * 4) * 4,
+          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
+
+        this.selectedBuffer = device.createBuffer({
+          label: "selected? buffer",
+          size: (4) * 4,
+          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
+        this.selectedArrowBuffer = device.createBuffer({
+          label: "selected? buffer",
+          size: (4) * 4,
+          usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
 
         this.arrowBindGroup = device.createBindGroup({
-          layout: this.arrowPipeline.getBindGroupLayout(0),
+          layout: this.ringPipeline.getBindGroupLayout(0),
           entries : [{
             binding : 0,
             resource: {buffer: cameraBuffer}
+          }, {
+            binding: 1,
+            resource: {buffer: this.translationBuffer}
+          }, {
+            binding: 2,
+            resource: {buffer: this.selectedArrowBuffer}
           }]
-        })
+        });
+
         this.ringBindGroup = device.createBindGroup({
           layout: this.ringPipeline.getBindGroupLayout(0),
           entries : [{
@@ -217,8 +221,11 @@ export class AngleControllerRenderer{
           }, {
             binding: 1,
             resource: {buffer: this.translationBuffer}
+          }, {
+            binding: 2,
+            resource: {buffer: this.selectedBuffer}
           }]
-        })
+        });
       
     }
 
@@ -240,15 +247,11 @@ export class AngleControllerRenderer{
         ]);
         const arrowBuffer = device.createBuffer({
           label: "Arrow buffer",
-          size: arrowVertices.byteLength,
+          size: cylinderDataX.vertexData.byteLength,
           usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
         });
-        device.queue.writeBuffer(arrowBuffer, 0, arrowVertices);
-        /*const arrowBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);*/
-
-        //gl.bufferData(gl.ARRAY_BUFFER, arrowVertices, gl.STATIC_DRAW);
-        this.arrowVertices = arrowVertices;
+        device.queue.writeBuffer(arrowBuffer, 0, cylinderDataX.vertexData);
+        // this.arrowVertices = arrowVertices;
         
         const createRingVertices = (radius, segments, plane) => {
             const vertices = [];
@@ -265,30 +268,17 @@ export class AngleControllerRenderer{
             return new Float32Array(vertices);
         };
         
-        const ringVerticesXY = createRingVertices(1.0, 36, 'XY');
         const ringVerticesYZ = createRingVertices(1.0, 36, 'YZ');
-        const ringVerticesXZ = createRingVertices(1.0, 36, 'XZ');
 
-        const ringBufferXY = device.createBuffer({
-          label: "ring XY buffer",
-          size: ringVerticesXY.byteLength,
-          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
-        });
-        device.queue.writeBuffer(ringBufferXY, 0, ringVerticesXY);
 
         const ringBufferYZ = device.createBuffer({
           label: "ring YZ buffer",
-          size: ringVerticesYZ.byteLength,
+          size: torusDataX.vertexData.byteLength,
           usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
         });
-        device.queue.writeBuffer(ringBufferYZ, 0, ringVerticesYZ);
+        device.queue.writeBuffer(ringBufferYZ, 0, torusDataX.vertexData);
 
-        const ringBufferXZ = device.createBuffer({
-          label: "ring XZ buffer",
-          size: ringVerticesXZ.byteLength,
-          usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
-        });
-        device.queue.writeBuffer(ringBufferXZ, 0, ringVerticesXZ);
+        
 
 
        /* const ringBufferXY = gl.createBuffer();
@@ -303,21 +293,17 @@ export class AngleControllerRenderer{
         gl.bindBuffer(gl.ARRAY_BUFFER, ringBufferXZ);
         gl.bufferData(gl.ARRAY_BUFFER, ringVerticesXZ, gl.STATIC_DRAW);*/
 
-        this.ringVerticesXY = ringVerticesXY;
         this.ringVerticesYZ = ringVerticesYZ;
-        this.ringVerticesXZ = ringVerticesXZ;
 
         return {
             arrowBuffer,
-            ringBufferXY,
             ringBufferYZ,
-                ringBufferXZ,
             };
     }
 
-    render(device, pass, joint_pos) {
+    render(device, pass, joint_pos, show_translation) {
         // console.log("Rendering angle controllers.");
-        const { arrowBuffer, ringBufferXY, ringBufferYZ, ringBufferXZ } = this.controller;
+        const { arrowBuffer, ringBufferYZ } = this.controller;
 
         // Arrow Rendering
        /* pass.setPipeline(this.arrowPipeline);
@@ -328,15 +314,36 @@ export class AngleControllerRenderer{
         // Ring rendering
         const modelMatrix = m4.translation(joint_pos[0], joint_pos[1], joint_pos[2]);
         device.queue.writeBuffer (this.translationBuffer, 0, new Float32Array(modelMatrix));
+        /*let rotmat_temp = [
+          this.rotmat[0], this.rotmat[1], this.rotmat[2], 0,
+          this.rotmat[3], this.rotmat[4], this.rotmat[5], 0,
+          this.rotmat[6], this.rotmat[7], this.rotmat[8], 0,
+          0, 0, 0, 1
+        ];
+        this.rotation = m4.multiply (rotmat_temp, this.rotation);*/
+        // device.queue.writeBuffer (this.rotationBuffer, 0, new Float32Array(Array.from(this.rotation)));
+        selected[0] = torusDataX.isHovered ? 1 : 0;
+        selected[1] = torusDataY.isHovered ? 1 : 0;
+        selected[2] = torusDataZ.isHovered ? 1 : 0;
+        device.queue.writeBuffer (this.selectedBuffer, 0, new Int32Array(selected));
 
         pass.setPipeline(this.ringPipeline); 
-        pass.setVertexBuffer(0, arrowBuffer);
-        pass.setBindGroup(0, this.ringBindGroup);
-        pass.draw(3, N_AXES);
+        
+
 
         pass.setBindGroup(0, this.ringBindGroup);
         pass.setVertexBuffer(0, ringBufferYZ);
-        pass.draw(this.ringVerticesXY.length / 3, N_AXES);
+        pass.draw(torusDataX.vertexData.length / 3, N_AXES);
+        
+        if (show_translation) {
+          pass.setVertexBuffer(0, arrowBuffer);
+          selected[0] = cylinderDataX.isHovered ? 1 : 0;
+          selected[1] = cylinderDataY.isHovered ? 1 : 0;
+          selected[2] = cylinderDataZ.isHovered ? 1 : 0;
+          device.queue.writeBuffer (this.selectedArrowBuffer, 0, new Int32Array(selected));
+          pass.setBindGroup(0, this.arrowBindGroup);
+          pass.draw(cylinderDataX.vertexData.length / 3, N_AXES);
+        }        
         /*pass.setVertexBuffer(0, ringBufferYZ);
         pass.draw(this.ringVerticesYZ.length / 3);
         pass.setVertexBuffer(0, ringBufferXZ);

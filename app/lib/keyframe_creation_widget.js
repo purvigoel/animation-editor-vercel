@@ -8,6 +8,7 @@ export class KeyframeCreationWidget {
     this.keyframes = [];
     
     this.timeline_div = null; //document.getElementById('timeline');
+    this.params.keyframe_creation_widget = this;
     
   }
 

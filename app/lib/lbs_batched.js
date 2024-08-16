@@ -20,7 +20,7 @@ export async function lbs(betas, pose, vertices2joints_precompute, v_template, s
     pose_feature = pose.slice([0, 0, 1, 0, 0], [-1, -1, -1, -1, -1]).sub(ident);
     rot_mats = pose.reshape([batch_size, -1, 3, 3]);
     
-    const [J_transformed, A] = await batchRigidTransform(rot_mats, J, parents);
+    const [J_transformed, A] = await batchRigidTransform(rot_mats, J, parents, pose.shape[1]);
     return [J_transformed, v_shaped, A, J];
 }
 
@@ -37,7 +37,7 @@ export async function lbs_update(betas, pose, J_regressor, parents, v_shaped, sk
     pose_feature = pose.slice([0, 0, 1, 0, 0], [-1, -1, -1, -1, -1]).sub(ident);
     rot_mats = pose.reshape([batch_size, -1, 3, 3]);
 
-    const [J_transformed, A] = await batchRigidTransform(rot_mats, J, parents);
+    const [J_transformed, A] = await batchRigidTransform(rot_mats, J, parents, pose.shape[1]);
    
     return [J_transformed, v_shaped, A, A];
 }
@@ -99,9 +99,8 @@ function transformMat(R, t) {
     return tf.tensor(values, shape);
 }
 
-async function batchRigidTransform(rot_mats, joints, parents) {
+async function batchRigidTransform(rot_mats, joints, parents, tot_frames) {
     const num_joints = joints.shape[1];
-    let tot_frames = 100;
     const first_sample = joints.slice([0, 0, 0], [1, num_joints, 3]);
     joints = first_sample.tile([tot_frames, 1, 1]);
 

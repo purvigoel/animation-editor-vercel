@@ -3,17 +3,19 @@ import {addMouseEvents} from "./mouse_handler.js";
 
 function handleScroll(event, render) {
     camera.radius += event.deltaY * 0.01;
-    camera.radius = Math.max(0.1, camera.radius);
+    camera.radius = Math.max(0.5, camera.radius);
     camera.radius = Math.min(camera.radius, 3);
     render();
 }
 
 function handleMouseDown(event, render) {
+    if (camera.locked) { camera.isDragging = false; return; }
     camera.isDragging = true;
     camera.lastMousePosition = { x: event.clientX, y: event.clientY };
 }
 
 function handleMouseMove(event, render) {
+    if (camera.locked) return;
     if (!camera.isDragging) return;
     const deltaX = event.clientX - camera.lastMousePosition.x;
     const deltaY = event.clientY - camera.lastMousePosition.y;
@@ -36,9 +38,26 @@ function handleKeyDown(canvas, event, render, params) {
             params.keyframe_widgets[i].deselect();
         }
     }
+
+    if (event.code == 'KeyA') {
+        camera.theta = -2 * Math.PI/8;
+        camera.phi = 0;
+        //camera.phi = 12 * Math.PI/4;
+        camera.radius = 1.5;
+        camera.lastMousePosition = {x: 0, y: 0};
+    }
+
+    if (event.code == 'KeyD') {
+        camera.theta = 2 * Math.PI/8;
+        camera.phi = 0;
+        //camera.phi = 12 * Math.PI/4;
+        camera.radius = 1.5;
+        camera.lastMousePosition = {x: 0, y: 0};
+    }
 }
 
 function handleMouseUp() {
+    // if (camera.locked) return;
     camera.isDragging = false;
 }
 

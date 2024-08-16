@@ -14,13 +14,14 @@ import { FloorRenderer } from "./lib/floor_renderer";
 import {angle_to_rotmat} from "./lib/angle_controller";
 // import { SkeletonRenderer } from "./lib/skeleton_renderer";
 import {shadowDepthTextureView, shadowBindGroup, initLight, setLightMatrix} from "./lib/light.js";
-import {addMouseEvents} from "./lib/mouse_handler.js";
+import {addMouseEvents, undo_log, redo_log} from "./lib/mouse_handler.js";
 import {addAngleControl} from "./lib/angle_controller.js";
 import {KeyframeCreationWidget} from "./lib/keyframe_creation_widget.js";
 import {KeyframeWidget} from "./lib/keyframe_widget.js";
 import {InterpolationWidget} from "./lib/interpolation_widget.js";
 import {loadGLTF, gltf_fragmentShaderSource, gltf_vertexShaderSource, renderScene} from "./lib/scenegraph/gltf_reader.js";
 import {m4} from "./lib/m4.js";
+import {initializeTorus, renderTorus} from "./lib/torus.js";
 
 import * as tf from "@tensorflow/tfjs";
 import {camera, initCamera, setCameraMatrix, getViewProjectionMatrix, adjustCamera} from "./lib/camera.js";
@@ -29,7 +30,7 @@ import {camera, initCamera, setCameraMatrix, getViewProjectionMatrix, adjustCame
 export default function Home() {
 
   const isInitializedRef = useRef(false); // useRef to persist state across renders
-  const num_frames = 100;
+  const num_frames = 60;
   const [currentFrame, setCurrentFrame] = useState(0);
   const [totalFrames, setTotalFrames] = useState(num_frames);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -61,6 +62,7 @@ export default function Home() {
     keyframe_inds: number[];
     keyframe_widgets: KeyframeWidget[];
     actor: Actor | null;
+    keyframe_creation_widget: KeyframeCreationWidget | null;
   }
 
   let params: Params = {
@@ -74,6 +76,7 @@ export default function Home() {
     keyframe_inds: [],
     keyframe_widgets: [],
     actor: null,
+    keyframe_creation_widget: null
   };
 
   const tot_frames = num_frames;
@@ -168,8 +171,7 @@ export default function Home() {
 
 
       const initializeCamera = () => {
-        initCamera(device);
-        
+        initCamera(device);        
       }
       
       const initializeActor = async () => {
@@ -288,6 +290,7 @@ export default function Home() {
           const rotmat = angle_to_rotmat(coord, angle * (Math.PI / 180) - previousAngle);
           
           actor.update_pose(globalTimeline.curr_time, rotmat, params["clicked"].id);
+          actor.skeletonRenderer.clickables[joint_id].angleController.update_rotmat (Array.from(rotmat.dataSync()));
   
           params["draw_once"] = true;
         }
@@ -308,6 +311,7 @@ export default function Home() {
             if( !(params.keyframe_inds.indexOf(globalTimeline.curr_time) > -1)){
               keyframeCreationWidget.createKeyframe(globalTimeline.curr_time);
             }
+            console.log (coord);
             const previousTrans = params.previousValues_trans[joint_id][coord];
             params.previousValues_trans[joint_id][coord] = translation;
             const translate_by = translation - previousTrans;
@@ -323,6 +327,60 @@ export default function Home() {
       document.addEventListener('translationChange', (e: Event) => {
         const { translation, coord } = (e as CustomEvent<{ translation: number, coord: number }>).detail;
         handleTranslationChange(translation, coord);
+      });
+
+      const undoChange = () => {
+        console.log("Undo button clicked");
+        if (undo_log.length == 0) {
+          console.log ("Nothing to undo");
+          return;
+        }
+        if (actor && actor.skeletonRenderer) {
+          let undoInfo = undo_log.pop();
+
+      
+          if (undoInfo.type == "rotation") {
+            const rotmat = undoInfo.joint.angleController.update_rotmat (undoInfo.axis, -undoInfo.value);
+            actor.update_pose (undoInfo.time, rotmat, undoInfo.joint.id);
+          } else if (undoInfo.type == "translation") {
+            actor.update_trans (undoInfo.time, -undoInfo.value, undoInfo.axis);
+          }
+          params["draw_once"] = true;
+
+          redo_log.push (undoInfo);
+
+        }
+
+      }
+
+      document.addEventListener ('undoChange', (e: Event) => {
+        undoChange ();
+      });
+
+      const redoChange = () => {
+        if (redo_log.length == 0) {
+          console.log ("Nothing to redo");
+          return;
+        }
+        if (actor && actor.skeletonRenderer) {
+          let redoInfo = redo_log.pop();
+
+          if (redoInfo.type == "rotation") {
+            const rotmat = redoInfo.joint.angleController.update_rotmat (redoInfo.axis, redoInfo.value);
+            actor.update_pose (redoInfo.time, rotmat, redoInfo.joint.id);
+          } else if (redoInfo.type == "translation") {
+            actor.update_trans (redoInfo.time, redoInfo.value, redoInfo.axis);
+          }
+          params["draw_once"] = true;
+
+          undo_log.push (redoInfo);
+
+        }
+
+      }
+
+      document.addEventListener ('redoChange', (e: Event) => {
+        redoChange ();
       });
   
       keyframeCreationWidget.timeline_div = document.getElementById('timeline'); // Ensure this line is executed after the DOM is loaded
@@ -419,12 +477,12 @@ export default function Home() {
 
         
         if (actor && actor.actorRenderer && actor.skeletonRenderer) {
-          device.queue.writeBuffer (actor.actorRenderer.colorBuffer, 0, Float32Array.from([0.9, 0.5 * (1 + Math.sin(0.25 * globalTimeline.curr_time))/2, 0.5, 1]));
+          device.queue.writeBuffer (actor.actorRenderer.colorBuffer, 0, Float32Array.from([0.9, 0.5, 0.5, 1]));
           actor.actorRenderer.render(pass);
           actor.skeletonRenderer.render (device, pass, canvas, globalTimeline.curr_time);
         }
 
-        
+        // renderTorus(pass);
         pass.end(); 
         // Finish the command buffer and immediately submit it.
         device.queue.submit([encoder.finish()]);
@@ -438,6 +496,7 @@ export default function Home() {
         console.log("Initializing floor");
         initializeFloor();
 
+        initializeTorus(device);
       }
       addAllEvents(canvas, renderLoop, params);
       addMouseEvents(canvas, clickables, renderLoop, params);
@@ -614,11 +673,17 @@ export default function Home() {
             </button>
             
           </Popover>
-          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
-            Character Color
+          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
+            e.preventDefault();
+            document.dispatchEvent(new CustomEvent('undoChange'));
+          }}>
+            Undo
           </button>
-          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2">
-            Light Position
+          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
+            e.preventDefault();
+            document.dispatchEvent(new CustomEvent('redoChange'));
+          }}>
+            Redo
           </button>
           <button type="button" className="bg-green-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
             e.preventDefault();
