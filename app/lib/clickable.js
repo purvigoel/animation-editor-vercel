@@ -6,6 +6,7 @@ import {angle_to_rotmat} from "./angle_controller";
 import {camera} from "./camera.js";
 import { shadowDepthSampler } from './light.js';
 import { undo_log } from "./mouse_handler.js";
+import { IKControllerWidget } from "./ik_controller_widget.js";
 
 const shapes = [torusDataX, torusDataY, torusDataZ,
                 cylinderDataX, cylinderDataY, cylinderDataZ];
@@ -19,6 +20,7 @@ export class Clickable {
         this.isHovered = false;
         this.isClicked = false;
         this.angleController = new AngleControllerWidget(this.origin, device, actor.angleControllerRenderer);
+        this.ikController = new IKControllerWidget(this.origin, device, actor.angleControllerRenderer, id, actor);
         this.id = id;
         this.actor = actor;
     }
@@ -174,14 +176,23 @@ export class Clickable {
                 if ( !(params.keyframe_inds.indexOf(params["currTime"]) > -1 )) {
                     params.keyframe_creation_widget.createKeyframe(params["currTime"]);
                 }
-                console.log (arrow.axis);
+                //åconsole.log (arrow.axis);
                 
                 const translate_by = this.getRayArrowMotion (rayDir, camera_pos, arrow);
                 arrow.totalChange += translate_by;
-                // params.previousValues_trans[this.id][arrow.axis] = translation;
-              
-                this.actor.update_trans(params["currTime"], translate_by, arrow.axis);
-      
+                //console.log(arrow.totalChange)
+                if (this.id != 0){
+                    // params.previousValues_trans[this.id][arrow.axis] = translation;
+                    let ik_val = this.ikController.update_position(translate_by, arrow.axis);
+
+                    if (ik_val.success) {
+                        this.actor.update_pose_ik(params["currTime"], ik_val.a_lr_mat, this.ikController.kinematic_chain[0]);
+                        this.actor.update_pose_ik(params["currTime"], ik_val.b_lr_mat, this.ikController.kinematic_chain[1]);
+
+                    }
+                } else if (this.id == 0){
+                    this.actor.update_trans(params["currTime"], translate_by, arrow.axis);
+                }
                 params["draw_once"] = true;
                 return true;
             }
