@@ -4,7 +4,7 @@ import { cylinderDataX, cylinderDataY, cylinderDataZ } from './cylinder.js';
 import {angle_to_rotmat} from "./angle_controller";
 import {camera} from "./camera.js";
 import { shadowDepthSampler } from './light.js';
-import { undo_log } from "./mouse_handler.js";
+import { undo_log, action_log } from "./mouse_handler.js";
 import { update_rotmat } from "./angle_controller";
 
 import * as tf from '@tensorflow/tfjs';
@@ -26,6 +26,8 @@ export class Clickable {
         this.id = id;
         this.actor = actor;
         this.rotmat = null;
+
+        this.startTime = 0;
     }
 
     checkRaySphereIntersection(rayDir, camera_pos) {
@@ -138,6 +140,7 @@ export class Clickable {
         for (let shape of shapes) {
             if (shape.isHovered) {
                 console.time();
+                this.startTime = window.performance.now();
 
                 if (shape.transformType == "rotation") {
                     // Calculate parent rotation matrix here so we don't have to recompute 4 every drag.
@@ -154,7 +157,10 @@ export class Clickable {
     mouseUpWidget (params) {
         for (let shape of shapes) {
             if (shape.isDragged) {
-                console.log ("Joint %d was edited in keyframe %d (%s)", this.id, params["currTime"], shape.transformType);
+                let endTime = window.performance.now();
+                action_log.push ([this.startTime, endTime - this.startTime, params["currTime"], this.id,  shape.totalChange, shape.axis, shape.transformType]);
+
+                console.log ("Joint %d was edited in keyframe %d (%s)", this.id, params["currTime"], shape.totalChange, shape.transformType);
                 console.timeEnd();
                 undo_log.push ( {joint: this, time: params["currTime"], axis: shape.axis, value: shape.totalChange, type: shape.transformType, normal: shape.normal} );
             }

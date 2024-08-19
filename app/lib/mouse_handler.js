@@ -13,6 +13,7 @@ let transformable_joints = [0, 7, 8, 20, 21];
 
 export let undo_log = [];
 export let redo_log = [];
+export let action_log = [];
 
 export function addMouseEvents(canvas, clickables, render, params) {
 

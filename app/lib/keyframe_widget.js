@@ -1,3 +1,5 @@
+import {undo_log, action_log} from "./mouse_handler.js";
+
 export class KeyframeWidget {
     constructor(time, tot_frames, params, index, keyframeUpdator){
         this.tot_frames = tot_frames;
@@ -73,10 +75,11 @@ export class KeyframeWidget {
             document.dispatchEvent(event);
 
             //console.log ("new_time: ", new_time);
-
+            action_log.push([window.performance.now(), this.time, new_time, "", "", "frame shift"]);
+            undo_log.push({time: new_time, old_time: this.time, vis_dot: this.vis_dot, type: "frameShift"});
             this.time = new_time;
             
-
+            
             //console.log ("Element drag ended");
             //console.log (e.clientX);
             //console.log (this.vis_dot.style.left);
@@ -87,6 +90,10 @@ export class KeyframeWidget {
             document.addEventListener('mousemove', this.onMouseMove.bind(this));
             document.addEventListener('mouseup', this.onMouseUp.bind(this));
         });
+    }
+
+    set_time (time) {
+        this
     }
 
     deselect(){

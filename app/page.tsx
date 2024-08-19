@@ -14,7 +14,7 @@ import { FloorRenderer } from "./lib/floor_renderer";
 import {angle_to_rotmat} from "./lib/angle_controller";
 // import { SkeletonRenderer } from "./lib/skeleton_renderer";
 import {shadowDepthTextureView, shadowBindGroup, initLight, setLightMatrix} from "./lib/light.js";
-import {addMouseEvents, undo_log, redo_log} from "./lib/mouse_handler.js";
+import {addMouseEvents, undo_log, redo_log, action_log} from "./lib/mouse_handler.js";
 import {addAngleControl} from "./lib/angle_controller.js";
 import {KeyframeCreationWidget} from "./lib/keyframe_creation_widget.js";
 import {KeyframeWidget} from "./lib/keyframe_widget.js";
@@ -216,6 +216,7 @@ export default function Home() {
       
       const handleInterpolate = async () => {
         if (actor) {
+          action_log.push([window.performance.now(), "", "", "", "", "", "interpolate"]);
           await interpolationWidget.interpolate_all_frames(actor);
         }
       };
@@ -384,11 +385,18 @@ export default function Home() {
           } else if (undoInfo.type == "translation") {
             actor.update_trans (undoInfo.time, -undoInfo.value, undoInfo.axis);
           } else if (undoInfo.type == "frameShift") {
-
+              actor?.transfer_keyframes (undoInfo.time, undoInfo.old_time);
+              if (globalTimeline) {
+                globalTimeline.curr_time = undoInfo.old_time;
+                params["currTime"] = undoInfo.old_time;
+                params["draw_once"] = true;
+                keyframeCreationWidget.shiftKeyframe(undoInfo.time, undoInfo.old_time);
+              }
           }
           
           params["draw_once"] = true;
-
+          
+          action_log.push ([window.performance.now(), "", "", "", "", "", "UNDO"]);
           redo_log.push (undoInfo);
 
         }
@@ -414,6 +422,7 @@ export default function Home() {
           }
           params["draw_once"] = true;
 
+          action_log.push ([window.performance.now(), "", "", "", "", "", "REDO"]);
           undo_log.push (redoInfo);
 
         }
@@ -554,7 +563,7 @@ export default function Home() {
       }
       addAllEvents(canvas, renderLoop, params);
       addMouseEvents(canvas, clickables, renderLoop, params);
-      
+      action_log.push([window.performance.now(), "", "", "", "", "", "INITIALIZE"]);
       requestAnimationFrame(renderLoop);
 
 
@@ -562,7 +571,17 @@ export default function Home() {
     init ();
   }, []);
 
+  /* https://stackoverflow.com/questions/14964035/how-to-export-javascript-array-info-to-csv-on-client-side */
   const handleDownload = () => {
+    console.log(action_log);
+    let csv = "data:text/csv;charset=utf-8," + action_log.map(e => e.join(",")).join("\n");
+    var encodedUri = encodeURI(csv);
+    var link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "my_data.csv");
+    document.body.appendChild(link); // Required for FF
+    
+    link.click(); // This will download the data file named "my_data.csv".
     console.log("Downloading...");
   }
 
