@@ -35,7 +35,7 @@ export class KeyframeWidget {
         this.lastX = thumbPosition;
 
         dot.addEventListener('click', () => {
-            console.log("click");
+            //console.log("click");
             const event = new CustomEvent('frameChange', { detail: this.time });
             document.dispatchEvent(event);
             //dot.style.backgroundColor="yellow";
@@ -51,7 +51,7 @@ export class KeyframeWidget {
 
         dot.addEventListener('drag', (e) => {
             this.select();
-            console.log("dragged");
+            //console.log("dragged");
             // console.log(this.time);
 
             const mouseX = e.clientX;
@@ -72,14 +72,14 @@ export class KeyframeWidget {
             const event = new CustomEvent('frameShift', { detail: {oldFrame: this.time, newFrame: new_time} });
             document.dispatchEvent(event);
 
-            console.log ("new_time: ", new_time);
+            //console.log ("new_time: ", new_time);
 
             this.time = new_time;
             
 
-            console.log ("Element drag ended");
-            console.log (e.clientX);
-            console.log (this.vis_dot.style.left);
+            //console.log ("Element drag ended");
+            //console.log (e.clientX);
+            //console.log (this.vis_dot.style.left);
             this.deselect();
         });
         dot.addEventListener('mousedown', (e) => {

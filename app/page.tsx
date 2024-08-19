@@ -201,7 +201,6 @@ export default function Home() {
       document.addEventListener('frameChange', (e: Event) => handleFrameChange((e as CustomEvent).detail));
 
       const handleFrameShift = (oldFrame: number, newFrame: number) => {
-        console.log ("oldFrame: %d, newFrame: %d", oldFrame, newFrame);
         actor?.transfer_keyframes (oldFrame, newFrame);
         if (globalTimeline) {
           globalTimeline.curr_time = newFrame;
@@ -350,16 +349,26 @@ export default function Home() {
           console.log ("Nothing to undo");
           return;
         }
+
+        if (undo_log.at(-1).time != globalTimeline.curr_time) {
+          globalTimeline.curr_time = undo_log.at(-1).time;
+          params["currTime"] = globalTimeline.curr_time;
+          params["draw_once"] = true;
+          return;
+        } 
+
         if (actor && actor.skeletonRenderer) {
           let undoInfo = undo_log.pop();
 
       
           if (undoInfo.type == "rotation") {
-            const rotmat = undoInfo.joint.angleController.update_rotmat (undoInfo.axis, -undoInfo.value);
-            actor.update_pose (undoInfo.time, rotmat, undoInfo.joint.id);
+            undoInfo.joint.rotate (undoInfo.normal, -undoInfo.value, undoInfo.time);
           } else if (undoInfo.type == "translation") {
             actor.update_trans (undoInfo.time, -undoInfo.value, undoInfo.axis);
+          } else if (undoInfo.type == "frameShift") {
+
           }
+          
           params["draw_once"] = true;
 
           redo_log.push (undoInfo);
@@ -381,8 +390,7 @@ export default function Home() {
           let redoInfo = redo_log.pop();
 
           if (redoInfo.type == "rotation") {
-            const rotmat = redoInfo.joint.angleController.update_rotmat (redoInfo.axis, redoInfo.value);
-            actor.update_pose (redoInfo.time, rotmat, redoInfo.joint.id);
+            redoInfo.joint.rotate (redoInfo.normal, redoInfo.value, redoInfo.time);
           } else if (redoInfo.type == "translation") {
             actor.update_trans (redoInfo.time, redoInfo.value, redoInfo.axis);
           }
@@ -730,7 +738,7 @@ export default function Home() {
                 console.log(angle);
                 if (!isNaN(angle)) {
                   const rotmat = angle_to_rotmat(0, angle * (Math.PI / 180)); // Convert angle to radians
-                  console.log(rotmat);
+                  // console.log(rotmat);
                   //await actor.update_pose(currentFrame, rotmat, 0); // Assuming joint 0 for example
                 }
               }}
@@ -759,10 +767,10 @@ export default function Home() {
           <input id="timeline-slider" type="range" className="w-full bg-white" min={0} max={totalFrames} value={currentFrame} onChange={(e) => {
             const frame = parseInt(e.target.value, 10);
             if (!isNaN(frame)) {
-              console.log(currentFrame);
-              console.log(frame);
+              // console.log(currentFrame);
+              // console.log(frame);
               if (frame == currentFrame) {
-                console.log ("Frame current");
+                // console.log ("Frame current");
               }
               const frame_constrained = frame >= totalFrames ? (totalFrames - 1) : frame < 0 ? 0 : frame;
               setCurrentFrame(frame_constrained);

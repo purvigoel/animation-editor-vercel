@@ -84,8 +84,8 @@ export class Clickable {
             // vec3.normalize (pointOnPlane, pointOnPlane);
 
             let diff = pointOnPlane[arrow.axis] - arrow.lastPointOnPlane[arrow.axis];
-            console.log ("Sign: %d", Math.sign(diff));
-            console.log ("diff: %f", diff);
+            //console.log ("Sign: %d", Math.sign(diff));
+            // console.log ("diff: %f", diff);
             arrow.lastPointOnPlane = pointOnPlane;
             return diff;
         }
@@ -120,6 +120,17 @@ export class Clickable {
         return false;
     }
 
+    calculateRotmat (frame) {
+        let pose = this.actor.smpl.full_pose;
+        let parents = this.actor.smpl.parents.arraySync();
+        let current = this.id;
+        this.rotmat = tf.tensor([[1,0,0],[0,1,0],[0,0,1]]);
+        while (current != -1) {
+            this.rotmat = tf.matMul (tf.tensor(pose[0][frame][current], [3, 3]), this.rotmat);
+            current = parents[current];
+        }
+    };
+
     mouseDownWidget (params) {
         for (let shape of shapes) {
             if (shape.isHovered) {
@@ -127,17 +138,7 @@ export class Clickable {
 
                 if (shape.transformType == "rotation") {
                     // Calculate parent rotation matrix here so we don't have to recompute 4 every drag.
-                    let pose = this.actor.smpl.full_pose;
-                    let parents = this.actor.smpl.parents.arraySync();
-                    // console.log(parents);
-
-                    let current = this.id;
-                    this.rotmat = tf.tensor([[1,0,0],[0,1,0],[0,0,1]]);
-                    const frame = params["currTime"];
-                    while (current != -1) {
-                        this.rotmat = tf.matMul (tf.tensor(pose[0][frame][current], [3, 3]), this.rotmat);
-                        current = parents[current];
-                    }
+                    this.calculateRotmat(params["currTime"]);
                 }
 
 
@@ -150,9 +151,9 @@ export class Clickable {
     mouseUpWidget (params) {
         for (let shape of shapes) {
             if (shape.isDragged) {
-                console.log ("Joint %d was edited in keyframe %d", this.id, params["currTime"]);
+                console.log ("Joint %d was edited in keyframe %d (%s)", this.id, params["currTime"], shape.transformType);
                 console.timeEnd();
-                undo_log.push ( {joint: this, time: params["currTime"], axis: shape.axis, value: shape.totalChange, type: shape.transformType} );
+                undo_log.push ( {joint: this, time: params["currTime"], axis: shape.axis, value: shape.totalChange, type: shape.transformType, normal: shape.normal} );
             }
             shape.totalChange = 0;
             shape.isHovered = false;
@@ -166,6 +167,12 @@ export class Clickable {
         for (let arrow of arrows) {
             arrow.lastPointOnPlane = this.origin;
         }
+    }
+
+    rotate (axis, angle, frame) {
+        this.calculateRotmat (frame);
+        const rotmat = update_rotmat (axis, angle, this.rotmat);
+        this.actor.update_pose (frame, rotmat, this.id);
     }
 
     dragWidget (params, rayDir, camera_pos) {

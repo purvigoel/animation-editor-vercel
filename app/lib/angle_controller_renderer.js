@@ -66,13 +66,6 @@ export class AngleControllerRenderer{
                      0, 0, 0, 1),
           );
 
-          var<private> scale : mat4x4f = mat4x4f (
-            0.25, 0, 0, 0,
-            0, 0.25, 0, 0,
-            0, 0, 0.25, 0,
-            0, 0, 0, 1
-          );
-
           @vertex
           fn vertexMain (@location(0) a_position : vec3f,
                          @builtin(instance_index) instanceIdx : u32) -> VertexOutput  {
@@ -251,24 +244,6 @@ export class AngleControllerRenderer{
           usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
         });
         device.queue.writeBuffer(arrowBuffer, 0, cylinderDataX.vertexData);
-        // this.arrowVertices = arrowVertices;
-        
-        const createRingVertices = (radius, segments, plane) => {
-            const vertices = [];
-            for (let i = 0; i <= segments; i++) {
-                const theta = (i / segments) * 2 * Math.PI;
-                if (plane === 'XY') {
-                    vertices.push(radius * Math.cos(theta), radius * Math.sin(theta), 0.0);
-                } else if (plane === 'YZ') {
-                    vertices.push(0.0, radius * Math.cos(theta), radius * Math.sin(theta));
-                } else if (plane === 'XZ') {
-                    vertices.push(radius * Math.cos(theta), 0.0, radius * Math.sin(theta));
-                }
-            }
-            return new Float32Array(vertices);
-        };
-        
-        const ringVerticesYZ = createRingVertices(1.0, 36, 'YZ');
 
 
         const ringBufferYZ = device.createBuffer({
@@ -277,23 +252,6 @@ export class AngleControllerRenderer{
           usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
         });
         device.queue.writeBuffer(ringBufferYZ, 0, torusDataX.vertexData);
-
-        
-
-
-       /* const ringBufferXY = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, ringBufferXY);
-        gl.bufferData(gl.ARRAY_BUFFER, ringVerticesXY, gl.STATIC_DRAW);
-
-        const ringBufferYZ = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, ringBufferYZ);
-        gl.bufferData(gl.ARRAY_BUFFER, ringVerticesYZ, gl.STATIC_DRAW);
-
-        const ringBufferXZ = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, ringBufferXZ);
-        gl.bufferData(gl.ARRAY_BUFFER, ringVerticesXZ, gl.STATIC_DRAW);*/
-
-        this.ringVerticesYZ = ringVerticesYZ;
 
         return {
             arrowBuffer,
@@ -336,55 +294,6 @@ export class AngleControllerRenderer{
           pass.setBindGroup(0, this.arrowBindGroup);
           pass.draw(cylinderDataX.vertexData.length / 3, N_AXES);
         }        
-        /*pass.setVertexBuffer(0, ringBufferYZ);
-        pass.draw(this.ringVerticesYZ.length / 3);
-        pass.setVertexBuffer(0, ringBufferXZ);
-        pass.draw(this.ringVerticesXZ.length / 3);*/
-        // Arrow Rendering
-        /*gl.useProgram(this.arrowProgram);
-        gl.bindBuffer(gl.ARRAY_BUFFER, arrowBuffer);
-        const positionLocation = gl.getAttribLocation(this.arrowProgram, 'a_position');
-        gl.enableVertexAttribArray(positionLocation);
-        gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
-        
-        const colors = [
-            [1.0, 0.0, 0.0, 1.0], // Red
-            [0.0, 1.0, 0.0, 1.0], // Green
-            [0.0, 0.0, 1.0, 1.0]  // Blue
-        ];
-
-        for (let i = 0; i < 3; i++) {
-            let modelMatrix = m4.create();
-            let scaleMatrix = m4.create();
-
-            modelMatrix = m4.translate(scaleMatrix, scaleMatrix, joint_location);
-            scaleMatrix = m4.scale(scaleMatrix, modelMatrix, [0.5, 0.5, 0.5]);
-
-            const mvpMatrix = m4.multiply(cameraMatrix, scaleMatrix);
-            const mvpMatrixLocation = gl.getUniformLocation(this.arrowProgram, 'u_mvpMatrix');
-            gl.uniformMatrix4fv(mvpMatrixLocation, false, mvpMatrix);
-
-            const colorLocation = gl.getUniformLocation(this.arrowProgram, 'u_color');
-            gl.uniform4fv(colorLocation, colors[i]);
-
-            gl.drawArrays(gl.LINES, i * 6, 6);
-        }
-        // Ring Rendering
-        
-        gl.useProgram(this.ringProgram);
-      
-        let modelMatrix = m4.create();
-        let scaleMatrix = m4.create();
-
-        modelMatrix = m4.translate(scaleMatrix, scaleMatrix, joint_location);
-        scaleMatrix = m4.scale(scaleMatrix, modelMatrix, [0.25, 0.25, 0.25]);
-
-        let ringMvpMatrix = m4.multiply(cameraMatrix, scaleMatrix);
-
-        const ringMvpMatrixLocation = gl.getUniformLocation(this.ringProgram, 'u_mvpMatrix');
-        gl.uniformMatrix4fv(ringMvpMatrixLocation, false, ringMvpMatrix);
-      */
-        
       }
 
 }

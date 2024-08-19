@@ -57,7 +57,7 @@ export function addMouseEvents(canvas, clickables, render, params) {
                     if (!clickable.checkRayTorusIntersection (rayDir, camera_pos)) {
                       //  console.log(i);
                         if (transformable_joints.includes(i)) {
-                            console.log (i);
+                            //console.log (i);
                             clickable.checkRayAxisIntersection (rayDir, camera_pos);
                         }
                     }
@@ -82,7 +82,7 @@ export function addMouseEvents(canvas, clickables, render, params) {
             if (params["clicked"] != null) {
                 if (params["clicked"].widgetInUse()) {
                     params["clicked"].mouseDownWidget(params);
-                    console.log ("angle widget in use");
+                    // console.log ("angle widget in use");
                     return;
                 }
             }
