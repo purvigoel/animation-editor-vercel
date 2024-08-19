@@ -21,7 +21,7 @@ export class Clickable {
         this.radius = radius;
         this.isHovered = false;
         this.isClicked = false;
-        this.angleController = new AngleControllerWidget(this.origin, device, actor.angleControllerRenderer);
+        //this.angleController = new AngleControllerWidget(this.origin, device, actor.angleControllerRenderer);
         this.ikController = new IKControllerWidget(this.origin, device, actor.angleControllerRenderer, id, actor);
         this.id = id;
         this.actor = actor;
