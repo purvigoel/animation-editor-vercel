@@ -314,14 +314,6 @@ export class AngleControllerRenderer{
         // Ring rendering
         const modelMatrix = m4.translation(joint_pos[0], joint_pos[1], joint_pos[2]);
         device.queue.writeBuffer (this.translationBuffer, 0, new Float32Array(modelMatrix));
-        /*let rotmat_temp = [
-          this.rotmat[0], this.rotmat[1], this.rotmat[2], 0,
-          this.rotmat[3], this.rotmat[4], this.rotmat[5], 0,
-          this.rotmat[6], this.rotmat[7], this.rotmat[8], 0,
-          0, 0, 0, 1
-        ];
-        this.rotation = m4.multiply (rotmat_temp, this.rotation);*/
-        // device.queue.writeBuffer (this.rotationBuffer, 0, new Float32Array(Array.from(this.rotation)));
         selected[0] = torusDataX.isHovered ? 1 : 0;
         selected[1] = torusDataY.isHovered ? 1 : 0;
         selected[2] = torusDataZ.isHovered ? 1 : 0;

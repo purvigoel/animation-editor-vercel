@@ -53,9 +53,9 @@ export function addMouseEvents(canvas, clickables, render, params) {
                 var clickable = clickables[i];
                 var hover = clickable.checkRaySphereIntersection(rayDir, camera_pos);
                 if (clickable.isClicked) {
-                    //console.log("Checking for ray-torus intersection...");
+                   // console.log("Checking for ray-torus intersection...");
                     if (!clickable.checkRayTorusIntersection (rayDir, camera_pos)) {
-                        //console.log(i);
+                      //  console.log(i);
                         if (transformable_joints.includes(i)) {
                             console.log (i);
                             clickable.checkRayAxisIntersection (rayDir, camera_pos);
@@ -76,22 +76,21 @@ export function addMouseEvents(canvas, clickables, render, params) {
 
     if (!mouseDownHandler) {
         mouseDownHandler = function(event) {
-            console.log("Mouse down");
+           // console.log("Mouse down");
             let clicked = false;
             drag = true;
             if (params["clicked"] != null) {
                 if (params["clicked"].widgetInUse()) {
-                    params["clicked"].mouseDownWidget();
+                    params["clicked"].mouseDownWidget(params);
                     console.log ("angle widget in use");
                     return;
                 }
             }
             for (var i = 0; i < clickables.length; i++) {
                 if (clickables[i].isHovered) {
-                    clickables[i].onClick();
                     clickables[i].isClicked = true;
-                    console.log(i);
-                    clickables[i].angleController.show = true;
+                    // console.log(i);
+                    // clickables[i].angleController.show = true;
                     params["draw_once"] = true;
                     clicked = true;
                     click_id = i;
@@ -105,14 +104,15 @@ export function addMouseEvents(canvas, clickables, render, params) {
                 for (var i = 0; i < clickables.length; i++) {
                     if(i != click_id){
                         clickables[i].isClicked = false;
-                        clickables[i].angleController.show = false;
+                        // clickables[i].angleController.show = false;
                     }
                 }
             } else {
                 params["clicked"] = null;
+                click_id = -1;
                 for (var i = 0; i < clickables.length; i++) {
                     clickables[i].isClicked = false;
-                    clickables[i].angleController.show = false;
+                    // clickables[i].angleController.show = false;
                 }
             }
         };

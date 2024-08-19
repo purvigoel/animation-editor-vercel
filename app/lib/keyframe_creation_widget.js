@@ -13,6 +13,8 @@ export class KeyframeCreationWidget {
   }
 
   createKeyframe(time) {
+    console.log ("Keyframe created at time %d", time);
+    //let keyframe_widget = new KeyframeWidget(time, this.tot_frames, this.params);
     let index = this.keyframes.length;
     let keyframe_widget = new KeyframeWidget(time, this.tot_frames, this.params, index, this);
     keyframe_widget.showKeyframeOnTimeline(this.timeline_div);
@@ -21,6 +23,11 @@ export class KeyframeCreationWidget {
     this.params.keyframe_inds.push(time);
     console.log(this.params.keyframe_inds)
 
+  }
+
+  shiftKeyframe (oldTime, newTime) {
+    console.log ("Keyframe at time %f shifted to %f", oldTime, newTime);
+    this.params.keyframe_inds[this.params.keyframe_inds.indexOf(oldTime)] = newTime;
   }
 
   createKeyframe_no_event(time){

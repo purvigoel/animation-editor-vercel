@@ -1,5 +1,5 @@
 import * as tf from '@tensorflow/tfjs';
-
+import {vec3} from "gl-matrix";
 class AngleController {
     constructor(smpl, skeleton, params) {
         this.smpl = smpl;
@@ -42,6 +42,13 @@ export function angle_axis_rotmat (axis, angle) {
         [k_z * k_x * (1 - cos_t) - k_y * sin_t, k_z * k_y * (1 - cos_t) + k_x * sin_t, cos_t + k_z * k_z * (1 - cos_t)]
     ]);
 
+}
+
+export function update_rotmat (axis, angle, rotmat) {
+    let world_axis = vec3.create();
+    vec3.transformMat3(world_axis, axis, rotmat.arraySync().flat());
+    vec3.normalize (world_axis, world_axis);
+    return angle_axis_rotmat (world_axis, angle);
 }
 
 
