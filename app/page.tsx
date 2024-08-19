@@ -391,6 +391,7 @@ export default function Home() {
                 params["currTime"] = undoInfo.old_time;
                 params["draw_once"] = true;
                 keyframeCreationWidget.shiftKeyframe(undoInfo.time, undoInfo.old_time);
+                undoInfo.vis_dot.style.left = `${undoInfo.old_pos}px`;
               }
           }
           
@@ -419,7 +420,16 @@ export default function Home() {
             redoInfo.joint.rotate (redoInfo.normal, redoInfo.value, redoInfo.time);
           } else if (redoInfo.type == "translation") {
             actor.update_trans (redoInfo.time, redoInfo.value, redoInfo.axis);
-          }
+          } else if (redoInfo.type == "frameShift") {
+            actor?.transfer_keyframes (redoInfo.old_time, redoInfo.time);
+            if (globalTimeline) {
+              globalTimeline.curr_time = redoInfo.time;
+              params["currTime"] = redoInfo.time;
+              params["draw_once"] = true;
+              keyframeCreationWidget.shiftKeyframe(redoInfo.old_time, redoInfo.time);
+              redoInfo.vis_dot.style.left = `${redoInfo.new_pos}px`;
+            }
+        }
           params["draw_once"] = true;
 
           action_log.push ([window.performance.now(), "", "", "", "", "", "REDO"]);
