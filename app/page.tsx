@@ -318,6 +318,7 @@ export default function Home() {
       const handleTranslationChange = async (translation: number, coord: number) => {
         if (actor && actor.skeletonRenderer && params["clicked"] != null) {
           let joint_id = params["clicked"].id as number;
+          
           if(joint_id == 0){
             if (!(joint_id in params.previousValues_trans)) {
               params.previousValues_trans[joint_id] = [0, 0, 0];
@@ -333,9 +334,26 @@ export default function Home() {
             actor.update_trans(globalTimeline.curr_time, translate_by, coord);
   
             params["draw_once"] = true;
+          } else {
+            translation /= 5.0;
+            if (!(joint_id in params.previousValues_trans)) {
+              params.previousValues_trans[joint_id] = [0, 0, 0];
+            }
+            const previousTrans = params.previousValues_trans[joint_id][coord];
+            params.previousValues_trans[joint_id][coord] = translation;
+            const translate_by = translation - previousTrans;
+            console.log(translate_by,previousTrans )
+            
+            let ik_val = clickables[joint_id].ikController.update_position(translate_by, coord);
+            if (ik_val.success) {
+              actor.update_pose(params["currTime"], ik_val.a_lr_mat, clickables[joint_id].ikController.kinematic_chain[0]);
+              actor.update_pose(params["currTime"], ik_val.b_lr_mat, clickables[joint_id].ikController.kinematic_chain[1]);
+            }
+            params["draw_once"] = true;
           }
           
         }
+
       };
 
       document.addEventListener('translationChange', (e: Event) => {
@@ -418,6 +436,7 @@ export default function Home() {
     let lastFrameTime = 0;
     let frameDuration = 1000 / 40;
     let loaded = false;
+    let counter  = 0;
 
     const renderLoop = (timestamp: number) => {
         if (timestamp < lastFrameTime + frameDuration) {
@@ -498,6 +517,18 @@ export default function Home() {
           floorRenderer.render(pass);
         }
 
+        // if(clickables[20]){
+        //   let pos = [ 0.5 * Math.cos(counter), 0.5 * Math.sin(globalTimeline.curr_time ), 0];
+        //   counter += 1;
+        //   console.log("desired", counter, pos);
+        //   let ik_val = clickables[20].ikController.update_position(pos, 0);
+        //   if (ik_val.success && actor) {
+        //     actor.update_pose_ik(0, ik_val.a_lr_mat, clickables[20].ikController.kinematic_chain[0]);
+        //     actor.update_pose_ik(0, ik_val.b_lr_mat, clickables[20].ikController.kinematic_chain[1]);
+        //   }
+        //   params["draw_once"] = true;
+        // }
+        
         
         if (actor && actor.actorRenderer && actor.skeletonRenderer) {
           device.queue.writeBuffer (actor.actorRenderer.colorBuffer, 0, Float32Array.from([0.9, 0.5, 0.5, 1]));

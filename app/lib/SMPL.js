@@ -174,6 +174,39 @@ export class SMPL{
         return [this.curr_joints, this.curr_As];
         
     }
+
+    async update_pose_skinning_ik(currFrame, rotmat, joint){
+        let poseArray = this.full_pose;
+        let poseMat = tf.tensor(poseArray[0][currFrame][joint], [3,3]);
+        
+        poseArray[0][currFrame][joint] = rotmat.arraySync(); //tf.matMul(poseMat , rotmat).arraySync();
+        // poseArray[0][currFrame][joint] = rotmat.arraySync();
+        
+        let single_frame_pose = tf.tensor(poseArray[0][currFrame], [24, 3, 3]).expandDims(0);
+        // console.log (this.parents.arraySync());
+        let [frame_joints, A] = await lbs_frame(this.betas, single_frame_pose, this.v_template, this.shapedirs, this.posedirs, this.J_regressor, this.parents, this.lbs_weights, false);
+        A = A.arraySync();
+        frame_joints = frame_joints.arraySync();
+
+        this.curr_As = this.curr_As.arraySync();
+        this.curr_As[currFrame] = A[0];
+
+        this.curr_As = tf.tensor(this.curr_As, [this.num_frames, 24, 4, 4]);
+
+        this.curr_joints = this.curr_joints.arraySync();
+
+        this.curr_joints[currFrame] = frame_joints[0];
+
+        this.curr_joints = tf.tensor(this.curr_joints, [this.num_frames, 24, 3]);
+
+        let global_translation_expanded = this.global_translation; //.arraySync();
+        global_translation_expanded = global_translation_expanded[0];
+        global_translation_expanded = tf.tensor(global_translation_expanded, [this.num_frames, 1, 3]);
+        this.curr_joints = tf.add(this.curr_joints, global_translation_expanded);
+
+        return [this.curr_joints, this.curr_As];
+        
+    }
     
 }
 
