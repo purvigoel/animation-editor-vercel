@@ -111,12 +111,12 @@ export class IKControllerWidget {
         return quat_out;
     }
 
-    update_position(translate_by, axis){
+    update_position(translate_by, axis, frame){
         if( !this.done_ik ){
             //this.done_ik += 1;
             //translate_by = 0.02;
             
-            let local_joints = this.actor.get_joints_at_time(0);
+            let local_joints = this.actor.get_joints_at_time(frame);
             
         
             this.origin = [local_joints[this.id][0] - local_joints[0][0], local_joints[this.id][1] - local_joints[0][1], local_joints[this.id][2] - local_joints[0][2]];
@@ -148,11 +148,11 @@ export class IKControllerWidget {
             // a_gr = a global rotation
             
             // a_lr = a local rotation
-            let a_lr = this.get_local_pose(0, this.kinematic_chain[0]);
+            let a_lr = this.get_local_pose(frame, this.kinematic_chain[0]);
             // b_lr = b local rotation
-            let b_lr = this.get_local_pose(0, this.kinematic_chain[1]);
+            let b_lr = this.get_local_pose(frame, this.kinematic_chain[1]);
 
-            let root_lr = this.get_local_pose(0, 0);
+            let root_lr = this.get_local_pose(frame, 0);
             // root inverse
             let a_gr = tf.transpose(root_lr);
             // inverse (root * hip)

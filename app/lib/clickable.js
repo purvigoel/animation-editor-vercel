@@ -220,7 +220,7 @@ export class Clickable {
                 //console.log(arrow.totalChange)
                 if (this.id != 0){
                     // params.previousValues_trans[this.id][arrow.axis] = translation;
-                    let ik_val = this.ikController.update_position(translate_by, arrow.axis);
+                    let ik_val = this.ikController.update_position(translate_by, arrow.axis, params["currTime"]);
 
                     if (ik_val.success) {
                         this.actor.update_pose_ik(params["currTime"], ik_val.a_lr_mat, this.ikController.kinematic_chain[0]);
