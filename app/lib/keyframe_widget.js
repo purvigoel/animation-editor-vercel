@@ -25,6 +25,7 @@ export class KeyframeWidget {
         const sliderRect = slider.getBoundingClientRect();
         const slider_val = parseInt(slider.value, 10)
         let thumbPosition = (slider_val / slider.max) * sliderRect.width + sliderRect.left - 10;
+        dot.setAttribute('tabindex', '0');
         dot.style.left = `${thumbPosition}px`;
         dot.style.width = '20px';
         dot.style.height = '20px';
@@ -51,6 +52,22 @@ export class KeyframeWidget {
             
         });
 
+        dot.addEventListener ('keyup', (e) => {
+           // console.log (e.key);
+            if (e.key == 'Backspace' ) {
+                if (this.selected) {
+                    console.log ("Deleting keyframe.");
+                    const event = new CustomEvent('frameDelete', {detail: this.time});
+                    document.dispatchEvent (event);
+                    this.vis_dot.remove();
+                    this.params.keyframe_widgets.splice (this.index, 1);
+                    // this.remove();
+                }
+            }
+
+        });
+
+
         dot.addEventListener('drag', (e) => {
             this.select();
             //console.log("dragged");
@@ -70,7 +87,12 @@ export class KeyframeWidget {
         });
 
         dot.addEventListener('dragend', (e) => {
-            const new_time = Math.floor ( slider.max * (thumbPosition + 10  - sliderRect.left)/sliderRect.width );
+            const new_time = Math.round ( slider.max * (thumbPosition + 10  - sliderRect.left)/sliderRect.width );
+
+            // Force thumb position at discrete interval (otherwise the red dot will be uncomfortably offset)
+            thumbPosition = (new_time / slider.max) * sliderRect.width + sliderRect.left - 10;
+            this.vis_dot.style.left =  `${thumbPosition}px`;
+
             const event = new CustomEvent('frameShift', { detail: {oldFrame: this.time, newFrame: new_time} });
             document.dispatchEvent(event);
 

@@ -191,6 +191,12 @@ export default function Home() {
       };
 
       const handleFrameChange = (frame: number) => {
+        for (let keyframe_widget of params.keyframe_widgets) {
+          console.log ("frame change");
+          if (frame != keyframe_widget.time) {
+              keyframe_widget.deselect();
+          }
+        }
           if (globalTimeline) {
             globalTimeline.curr_time = frame;
             params["currTime"] = frame;
@@ -202,7 +208,7 @@ export default function Home() {
 
       const handleFrameShift = (oldFrame: number, newFrame: number) => {
         actor?.transfer_keyframes (oldFrame, newFrame);
-        if (globalTimeline) {
+        if (actor && globalTimeline) {
           globalTimeline.curr_time = newFrame;
           params["currTime"] = newFrame;
           params["draw_once"] = true;
@@ -213,6 +219,15 @@ export default function Home() {
         const { oldFrame, newFrame } = (e as CustomEvent<{ oldFrame: number, newFrame: number }>).detail;
         handleFrameShift(oldFrame, newFrame);
       });
+
+      const handleFrameDelete = (frame: number) => {
+        if (actor) {
+          let data = actor.get_keyframe_at_time(frame);
+          keyframeCreationWidget.deleteKeyframe(frame);
+          undo_log.push ({type: "delete", time: frame, pose: data[0], trans: data[1]});
+        }
+      }
+      document.addEventListener('frameDelete', (e: Event) => handleFrameDelete((e as CustomEvent).detail));
       
       const handleInterpolate = async () => {
         if (actor) {
@@ -370,9 +385,7 @@ export default function Home() {
         }
 
         if (undo_log.at(-1).time != globalTimeline.curr_time) {
-          globalTimeline.curr_time = undo_log.at(-1).time;
-          params["currTime"] = globalTimeline.curr_time;
-          params["draw_once"] = true;
+          handleFrameChange (undo_log.at(-1).time);
           return;
         } 
 
@@ -393,6 +406,9 @@ export default function Home() {
                 keyframeCreationWidget.shiftKeyframe(undoInfo.time, undoInfo.old_time);
                 undoInfo.vis_dot.style.left = `${undoInfo.old_pos}px`;
               }
+          } else if (undoInfo.type == "delete") {
+            actor.set_keyframe_at_time (undoInfo.time, tf.tensor(undoInfo.pose), tf.tensor(undoInfo.trans));
+            keyframeCreationWidget.createKeyframe (undoInfo.time);
           }
           
           params["draw_once"] = true;
@@ -413,6 +429,12 @@ export default function Home() {
           console.log ("Nothing to redo");
           return;
         }
+
+        if (redo_log.at(-1).time != globalTimeline.curr_time) {
+          handleFrameChange (redo_log.at(-1).time);
+          return;
+        }
+
         if (actor && actor.skeletonRenderer) {
           let redoInfo = redo_log.pop();
 
@@ -428,7 +450,18 @@ export default function Home() {
               params["draw_once"] = true;
               keyframeCreationWidget.shiftKeyframe(redoInfo.old_time, redoInfo.time);
               redoInfo.vis_dot.style.left = `${redoInfo.new_pos}px`;
+            } 
+        } else if (redoInfo.type == "delete") {
+            for (let i = 0; i < params.keyframe_widgets.length; i++) {
+              let keyframe_widget = params.keyframe_widgets[i];
+              if (keyframe_widget.time == redoInfo.time) {
+                keyframe_widget.vis_dot.remove();
+                params.keyframe_widgets.splice(i, 1);
+                break;
+              }
             }
+            keyframeCreationWidget.deleteKeyframe(redoInfo.time);
+
         }
           params["draw_once"] = true;
 
@@ -829,9 +862,7 @@ export default function Home() {
             if (!isNaN(frame)) {
               // console.log(currentFrame);
               // console.log(frame);
-              if (frame == currentFrame) {
-                // console.log ("Frame current");
-              }
+
               const frame_constrained = frame >= totalFrames ? (totalFrames - 1) : frame < 0 ? 0 : frame;
               setCurrentFrame(frame_constrained);
               const event = new CustomEvent('frameChange', { detail: frame_constrained });

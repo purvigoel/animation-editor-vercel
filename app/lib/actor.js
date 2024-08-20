@@ -3,6 +3,7 @@ import {Skeleton} from "./skeleton.js";
 import {ActorRenderer} from "./actor_renderer.js";
 import {SkeletonRenderer} from "./skeleton_renderer.js";
 import { AngleControllerRenderer } from "./angle_controller_renderer";
+import * as tf from '@tensorflow/tfjs';
 
 export class Actor {
     constructor(tot_frames, device){
@@ -121,15 +122,16 @@ export class Actor {
     }
 
     transfer_keyframes (oldTime, newTime) {
-        this.skeleton.A[newTime] = this.skeleton.A[oldTime];
+        /*this.skeleton.A[newTime] = this.skeleton.A[oldTime];
         this.skeleton.translation[0][newTime] = this.skeleton.translation[0][oldTime];
         this.skeleton.J[newTime] = this.skeleton.J[oldTime];
 
         this.skeletonRenderer.jointBuffer[newTime] = this.skeletonRenderer.jointBuffer[oldTime];
-        this.skeletonRenderer.joint_pos[newTime] = this.skeletonRenderer.joint_pos[oldTime];
+        this.skeletonRenderer.joint_pos[newTime] = this.skeletonRenderer.joint_pos[oldTime];*/
 
         this.smpl.full_pose[0][newTime] = this.smpl.full_pose[0][oldTime];
         this.smpl.global_translation[0][newTime] = this.smpl.global_translation[0][oldTime];
+        this.update_pose (newTime, tf.tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]), 0);
     }
 
     set_keyframe_at_time(time, keyframe, trans){

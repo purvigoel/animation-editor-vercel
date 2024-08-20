@@ -25,6 +25,14 @@ export class KeyframeCreationWidget {
 
   }
 
+  deleteKeyframe (frame) {
+    let index = this.params.keyframe_inds.indexOf(frame);
+    this.params.keyframe_inds.splice(index, 1);
+    //this.params.keyframe_widgets[index].vis_dot.style.backgroundColor = 'green';
+    //this.params.keyframe_widgets[index].vis_dot.remove();
+    //this.params.keyframe_widgets.splice(index, 1);
+  }
+
   shiftKeyframe (oldTime, newTime) {
     console.log ("Keyframe at time %f shifted to %f", oldTime, newTime);
     this.params.keyframe_inds[this.params.keyframe_inds.indexOf(oldTime)] = newTime;
