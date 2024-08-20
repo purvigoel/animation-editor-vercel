@@ -52,6 +52,7 @@ export class KeyframeWidget {
             
         });
 
+
         dot.addEventListener ('keyup', (e) => {
            // console.log (e.key);
             if (e.key == 'Backspace' ) {
@@ -59,8 +60,8 @@ export class KeyframeWidget {
                     console.log ("Deleting keyframe.");
                     const event = new CustomEvent('frameDelete', {detail: this.time});
                     document.dispatchEvent (event);
-                    this.vis_dot.remove();
-                    this.params.keyframe_widgets.splice (this.index, 1);
+                    /*this.vis_dot.remove();
+                    this.params.keyframe_widgets.splice (this.index, 1);*/
                     // this.remove();
                 }
             }
@@ -88,6 +89,12 @@ export class KeyframeWidget {
 
         dot.addEventListener('dragend', (e) => {
             const new_time = Math.round ( slider.max * (thumbPosition + 10  - sliderRect.left)/sliderRect.width );
+
+            // Delete any existing keyframe at thew new time.
+            if (this.params.keyframe_inds.indexOf(new_time) != -1) {
+                const event = new CustomEvent('frameDelete', {detail: new_time});
+                document.dispatchEvent (event);
+            }
 
             // Force thumb position at discrete interval (otherwise the red dot will be uncomfortably offset)
             thumbPosition = (new_time / slider.max) * sliderRect.width + sliderRect.left - 10;

@@ -28,6 +28,14 @@ export class KeyframeCreationWidget {
   deleteKeyframe (frame) {
     let index = this.params.keyframe_inds.indexOf(frame);
     this.params.keyframe_inds.splice(index, 1);
+    for (let i = 0; i < this.params.keyframe_widgets.length; i++) {
+      let keyframe_widget = this.params.keyframe_widgets[i];
+      if (keyframe_widget.time == frame) {
+        keyframe_widget.vis_dot.remove();
+        this.params.keyframe_widgets.splice(i, 1);
+        break;
+      }
+    }
     //this.params.keyframe_widgets[index].vis_dot.style.backgroundColor = 'green';
     //this.params.keyframe_widgets[index].vis_dot.remove();
     //this.params.keyframe_widgets.splice(index, 1);

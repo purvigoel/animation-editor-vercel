@@ -396,7 +396,7 @@ export default function Home() {
           if (undoInfo.type == "rotation") {
             undoInfo.joint.rotate (undoInfo.normal, -undoInfo.value, undoInfo.time);
           } else if (undoInfo.type == "translation") {
-            actor.update_trans (undoInfo.time, -undoInfo.value, undoInfo.axis);
+            undoInfo.joint.translate (undoInfo.axis, -undoInfo.value, undoInfo.time);
           } else if (undoInfo.type == "frameShift") {
               actor?.transfer_keyframes (undoInfo.time, undoInfo.old_time);
               if (globalTimeline) {
@@ -408,6 +408,7 @@ export default function Home() {
               }
           } else if (undoInfo.type == "delete") {
             actor.set_keyframe_at_time (undoInfo.time, tf.tensor(undoInfo.pose), tf.tensor(undoInfo.trans));
+            actor.update_pose (undoInfo.time, tf.tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]), 0);
             keyframeCreationWidget.createKeyframe (undoInfo.time);
           }
           
@@ -441,7 +442,7 @@ export default function Home() {
           if (redoInfo.type == "rotation") {
             redoInfo.joint.rotate (redoInfo.normal, redoInfo.value, redoInfo.time);
           } else if (redoInfo.type == "translation") {
-            actor.update_trans (redoInfo.time, redoInfo.value, redoInfo.axis);
+            redoInfo.joint.translate (redoInfo.axis, redoInfo.value, redoInfo.time);
           } else if (redoInfo.type == "frameShift") {
             actor?.transfer_keyframes (redoInfo.old_time, redoInfo.time);
             if (globalTimeline) {
@@ -452,14 +453,14 @@ export default function Home() {
               redoInfo.vis_dot.style.left = `${redoInfo.new_pos}px`;
             } 
         } else if (redoInfo.type == "delete") {
-            for (let i = 0; i < params.keyframe_widgets.length; i++) {
+            /*for (let i = 0; i < params.keyframe_widgets.length; i++) {
               let keyframe_widget = params.keyframe_widgets[i];
               if (keyframe_widget.time == redoInfo.time) {
                 keyframe_widget.vis_dot.remove();
                 params.keyframe_widgets.splice(i, 1);
                 break;
               }
-            }
+            }*/
             keyframeCreationWidget.deleteKeyframe(redoInfo.time);
 
         }

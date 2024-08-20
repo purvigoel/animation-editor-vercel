@@ -184,6 +184,18 @@ export class Clickable {
         this.actor.update_pose (frame, rotmat, this.id);
     }
 
+    translate (axis, amount, frame) {
+        if (this.id != 0) {
+            let ik_val = this.ikController.update_position (amount, axis, frame);
+            if (ik_val.success) {
+                this.actor.update_pose_ik(frame, ik_val.a_lr_mat, this.ikController.kinematic_chain[0]);
+                this.actor.update_pose_ik(frame, ik_val.b_lr_mat, this.ikController.kinematic_chain[1]);
+            }
+        } else if (this.id == 0) {
+            this.actor.update_trans (frame, amount, axis);
+        }
+    }
+
     dragWidget (params, rayDir, camera_pos) {
         for (let ring of rings) {
             if (ring.isDragged) {
