@@ -225,6 +225,7 @@ export default function Home() {
           let data = actor.get_keyframe_at_time(frame);
           keyframeCreationWidget.deleteKeyframe(frame);
           undo_log.push ({type: "delete", time: frame, pose: data[0], trans: data[1]});
+          action_log.push ([window.performance.now(), frame, "", "", "", "", "delete"]);
         }
       }
       document.addEventListener('frameDelete', (e: Event) => handleFrameDelete((e as CustomEvent).detail));
