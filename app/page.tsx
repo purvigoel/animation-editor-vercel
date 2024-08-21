@@ -405,7 +405,8 @@ export default function Home() {
                 params["currTime"] = undoInfo.old_time;
                 params["draw_once"] = true;
                 keyframeCreationWidget.shiftKeyframe(undoInfo.time, undoInfo.old_time);
-                undoInfo.vis_dot.style.left = `${undoInfo.old_pos}px`;
+                undoInfo.widget.time = undoInfo.old_time;
+                undoInfo.widget.vis_dot.style.left = `${undoInfo.old_pos}px`;
               }
           } else if (undoInfo.type == "delete") {
             actor.set_keyframe_at_time (undoInfo.time, tf.tensor(undoInfo.pose), tf.tensor(undoInfo.trans));
@@ -451,7 +452,8 @@ export default function Home() {
               params["currTime"] = redoInfo.time;
               params["draw_once"] = true;
               keyframeCreationWidget.shiftKeyframe(redoInfo.old_time, redoInfo.time);
-              redoInfo.vis_dot.style.left = `${redoInfo.new_pos}px`;
+              redoInfo.widget.time = redoInfo.time;
+              redoInfo.widget.vis_dot.style.left = `${redoInfo.new_pos}px`;
             } 
         } else if (redoInfo.type == "delete") {
             /*for (let i = 0; i < params.keyframe_widgets.length; i++) {

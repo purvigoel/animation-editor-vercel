@@ -160,8 +160,8 @@ export class Clickable {
                 let endTime = window.performance.now();
                 action_log.push ([this.startTime, endTime - this.startTime, params["currTime"], this.id,  shape.totalChange, shape.axis, shape.transformType]);
 
-                console.log ("Joint %d was edited in keyframe %d (%s)", this.id, params["currTime"], shape.totalChange, shape.transformType);
-                console.timeEnd();
+                // console.log ("Joint %d was edited in keyframe %d (%s)", this.id, params["currTime"], shape.totalChange, shape.transformType);
+                // console.timeEnd();
                 undo_log.push ( {joint: this, time: params["currTime"], axis: shape.axis, value: shape.totalChange, type: shape.transformType, normal: shape.normal} );
             }
             shape.totalChange = 0;
@@ -239,6 +239,8 @@ export class Clickable {
                         this.actor.update_pose_ik(params["currTime"], ik_val.b_lr_mat, this.ikController.kinematic_chain[1]);
 
                     }
+
+                    // console.log (( this.actor.smpl.curr_joints.arraySync() ) [params["currTime"]] [this.id]);
                 } else if (this.id == 0){
                     this.actor.update_trans(params["currTime"], translate_by, arrow.axis);
                 }

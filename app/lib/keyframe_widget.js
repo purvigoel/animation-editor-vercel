@@ -105,7 +105,7 @@ export class KeyframeWidget {
 
             //console.log ("new_time: ", new_time);
             action_log.push([window.performance.now(), this.time, new_time, "", "", "", "frame shift"]);
-            undo_log.push({time: new_time, old_time: this.time, vis_dot: this.vis_dot, type: "frameShift", 
+            undo_log.push({time: new_time, old_time: this.time, widget: this, type: "frameShift", 
                             old_pos: (this.time / slider.max) * sliderRect.width + sliderRect.left - 10, new_pos: thumbPosition});
             this.time = new_time;
             
