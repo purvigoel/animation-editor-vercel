@@ -114,7 +114,6 @@ export class SMPL{
         let poseArray = this.full_pose; //.arraySync();
 
         let poseMat = tf.tensor(poseArray[0][currFrame][joint], [3,3]);
-        let newPose = tf.matMul(poseMat, rotmat);
         
         poseArray[0][currFrame][joint] = tf.matMul(poseMat , rotmat).arraySync();
         // poseArray[0][currFrame][joint] = rotmat.arraySync();
@@ -144,8 +143,7 @@ export class SMPL{
     async update_pose_skinning(currFrame, rotmat, joint){
         let poseArray = this.full_pose;
         let poseMat = tf.tensor(poseArray[0][currFrame][joint], [3,3]);
-        let newPose = tf.matMul(poseMat, rotmat);
-        
+
         poseArray[0][currFrame][joint] = tf.matMul(poseMat , rotmat).arraySync();
         // poseArray[0][currFrame][joint] = rotmat.arraySync();
         
@@ -177,7 +175,6 @@ export class SMPL{
 
     async update_pose_skinning_ik(currFrame, rotmat, joint){
         let poseArray = this.full_pose;
-        let poseMat = tf.tensor(poseArray[0][currFrame][joint], [3,3]);
         
         poseArray[0][currFrame][joint] = rotmat.arraySync(); //tf.matMul(poseMat , rotmat).arraySync();
         // poseArray[0][currFrame][joint] = rotmat.arraySync();

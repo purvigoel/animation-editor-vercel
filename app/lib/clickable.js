@@ -28,6 +28,7 @@ export class Clickable {
         this.rotmat = null;
 
         this.startTime = 0;
+        this.createdNewFrame = false;
     }
 
     checkRaySphereIntersection(rayDir, camera_pos) {
@@ -141,6 +142,7 @@ export class Clickable {
             if (shape.isHovered) {
                 console.time();
                 this.startTime = window.performance.now();
+                this.createdNewFrame = false;
 
                 if (shape.transformType == "rotation") {
                     // Calculate parent rotation matrix here so we don't have to recompute 4 every drag.
@@ -162,7 +164,7 @@ export class Clickable {
 
                 // console.log ("Joint %d was edited in keyframe %d (%s)", this.id, params["currTime"], shape.totalChange, shape.transformType);
                 // console.timeEnd();
-                undo_log.push ( {joint: this, time: params["currTime"], axis: shape.axis, value: shape.totalChange, type: shape.transformType, normal: shape.normal} );
+                undo_log.push ( {joint: this, time: params["currTime"], axis: shape.axis, value: shape.totalChange, type: shape.transformType, normal: shape.normal, newFrame: this.createdNewFrame} );
             }
             shape.totalChange = 0;
             shape.isHovered = false;
@@ -208,6 +210,7 @@ export class Clickable {
                 }
                 if ( !(params.keyframe_inds.indexOf(params["currTime"]) > -1 )) {
                     params.keyframe_creation_widget.createKeyframe(params["currTime"]);
+                    this.createdNewFrame = true;
                 } 
                 const rotmat = update_rotmat (ring.normal, sign, this.rotmat);
                 this.actor.update_pose (params["currTime"], rotmat, this.id);
@@ -224,6 +227,7 @@ export class Clickable {
                 }
                 if ( !(params.keyframe_inds.indexOf(params["currTime"]) > -1 )) {
                     params.keyframe_creation_widget.createKeyframe(params["currTime"]);
+                    this.createdNewFrame = true;
                 }
                 //åconsole.log (arrow.axis);
                 

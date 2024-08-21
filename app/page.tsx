@@ -396,8 +396,17 @@ export default function Home() {
       
           if (undoInfo.type == "rotation") {
             undoInfo.joint.rotate (undoInfo.normal, -undoInfo.value, undoInfo.time);
+
+            // delete frame if a new one was created
+            if (undoInfo.newFrame) {
+              keyframeCreationWidget.deleteKeyframe(undoInfo.time);
+            }
           } else if (undoInfo.type == "translation") {
             undoInfo.joint.translate (undoInfo.axis, -undoInfo.value, undoInfo.time);
+            // delete frame if a new one was created
+            if (undoInfo.newFrame) {
+              keyframeCreationWidget.deleteKeyframe(undoInfo.time);
+            }
           } else if (undoInfo.type == "frameShift") {
               actor?.transfer_keyframes (undoInfo.time, undoInfo.old_time);
               if (globalTimeline) {
@@ -442,8 +451,14 @@ export default function Home() {
           let redoInfo = redo_log.pop();
 
           if (redoInfo.type == "rotation") {
+            if (redoInfo.newFrame) {
+              keyframeCreationWidget.createKeyframe(redoInfo.time);
+            }
             redoInfo.joint.rotate (redoInfo.normal, redoInfo.value, redoInfo.time);
           } else if (redoInfo.type == "translation") {
+            if (redoInfo.newFrame) {
+              keyframeCreationWidget.createKeyframe(redoInfo.time);
+            }
             redoInfo.joint.translate (redoInfo.axis, redoInfo.value, redoInfo.time);
           } else if (redoInfo.type == "frameShift") {
             actor?.transfer_keyframes (redoInfo.old_time, redoInfo.time);
