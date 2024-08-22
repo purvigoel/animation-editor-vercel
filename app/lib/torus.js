@@ -126,9 +126,9 @@ export function checkRayTriangleIntersection (v1, v2, v3, rayDir, camera_pos) {
 let pipeline = null;
 let positionBuffer = null;
 let bindGroup = null;
-export let torusDataX = torus(0.15, 0.01, 50, 25, 0);
-export let torusDataY = torus(0.15, 0.01, 50, 25, 1);
-export let torusDataZ = torus(0.15, 0.01, 50, 25, 2);
+export let torusDataX = torus(0.15, 0.015, 50, 25, 0);
+export let torusDataY = torus(0.15, 0.015, 50, 25, 1);
+export let torusDataZ = torus(0.15, 0.015, 50, 25, 2);
 
 
 export function initializeTorus (device) {
