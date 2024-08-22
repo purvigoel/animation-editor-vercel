@@ -129,8 +129,8 @@ export class Actor {
         this.skeletonRenderer.jointBuffer[newTime] = this.skeletonRenderer.jointBuffer[oldTime];
         this.skeletonRenderer.joint_pos[newTime] = this.skeletonRenderer.joint_pos[oldTime];*/
 
-        this.smpl.full_pose[0][newTime] = this.smpl.full_pose[0][oldTime];
-        this.smpl.global_translation[0][newTime] = this.smpl.global_translation[0][oldTime];
+        this.smpl.full_pose[0][newTime] = tf.tensor(this.smpl.full_pose[0][oldTime]).arraySync();
+        this.smpl.global_translation[0][newTime] = tf.tensor(this.smpl.global_translation[0][oldTime]).arraySync();
         this.update_pose (newTime, tf.tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]), 0);
     }
 

@@ -7,7 +7,7 @@ import { Actor } from "./lib/actor";
 import {addAllEvents} from "./lib/key_handler.js";
 import {Timeline} from "./lib/timeline.js";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload, faAngleDoubleRight, faAngleDown, faAngleUp } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faCopy, faAngleDoubleRight, faAngleDown, faAngleUp } from '@fortawesome/free-solid-svg-icons';
 import { Popover } from 'react-tiny-popover';
 import { FloorRenderer } from "./lib/floor_renderer";
 // import {AngleControllerRenderer} from "./lib/angle_controller_renderer";
@@ -36,6 +36,8 @@ export default function Home() {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isPromptPopoverOpen, setIsPromptPopoverOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
+
+  let copyFrame = -1;
 
   interface GLTF {
     scenes: any[];
@@ -229,6 +231,42 @@ export default function Home() {
         }
       }
       document.addEventListener('frameDelete', (e: Event) => handleFrameDelete((e as CustomEvent).detail));
+
+      const handleFrameCopy = (frame: number) => {
+        if (copyFrame == -1 && isNaN(frame)) {
+          //console.log("current time: %d", globalTimeline.curr_time);
+          copyFrame = globalTimeline.curr_time;
+        } else if (copyFrame != -1) {
+          //console.log ("copying frame %d to %d", copyFrame, frame);
+          if (!isNaN(frame)) {
+            if (actor && globalTimeline) {
+              if ((params.keyframe_inds.indexOf(frame) > -1)) {
+                handleFrameDelete (frame);
+              } 
+              params.keyframe_creation_widget?.createKeyframe(frame);
+              actor.transfer_keyframes (copyFrame, frame);
+            }
+            
+            action_log.push ([window.performance.now(), copyFrame, frame, "", "", "", "copy"]);
+            undo_log.push ({type: "copy", copyFrame: copyFrame, time: frame});
+          }
+          copyFrame = -1;
+
+        }
+
+        const copyButton = document.getElementById("copyButton");
+        if (copyButton) {
+          if (copyFrame == -1) {
+            copyButton.style.backgroundColor = "rgb(255, 197, 181)"
+          } else {
+            copyButton.style.backgroundColor = "blue";
+          }
+        }
+    
+    
+      }
+
+      document.addEventListener ('frameCopy', (e: Event) => handleFrameCopy((e as CustomEvent).detail));
       
       const handleInterpolate = async () => {
         if (actor) {
@@ -421,6 +459,9 @@ export default function Home() {
             actor.set_keyframe_at_time (undoInfo.time, tf.tensor(undoInfo.pose), tf.tensor(undoInfo.trans));
             actor.update_pose (undoInfo.time, tf.tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]), 0);
             keyframeCreationWidget.createKeyframe (undoInfo.time);
+          } else if (undoInfo.type == "copy") {
+            console.log ("%d %d", undoInfo.copyFrame, undoInfo.time);
+            keyframeCreationWidget.deleteKeyframe (undoInfo.time);
           }
           
           params["draw_once"] = true;
@@ -481,6 +522,9 @@ export default function Home() {
             }*/
             keyframeCreationWidget.deleteKeyframe(redoInfo.time);
 
+        } else if (redoInfo.type == "copy") {
+          keyframeCreationWidget.createKeyframe (redoInfo.time);
+          actor?.transfer_keyframes (redoInfo.copyFrame, redoInfo.time);
         }
           params["draw_once"] = true;
 
@@ -494,6 +538,8 @@ export default function Home() {
       document.addEventListener ('redoChange', (e: Event) => {
         redoChange ();
       });
+
+
   
       keyframeCreationWidget.timeline_div = document.getElementById('timeline'); // Ensure this line is executed after the DOM is loaded
       keyframeCreationWidget.createKeyframe_no_event(0);
@@ -540,6 +586,8 @@ export default function Home() {
           actor.actorRenderer.updateUniformArray (device, A_matrix, trans_matrix);
           loaded = true;
         }
+
+        //console.log (globalTimeline.curr_time);
 
         let contextView = context.getCurrentTexture().createView()
         const encoder = device.createCommandEncoder();
@@ -647,9 +695,11 @@ export default function Home() {
     console.log("Downloading...");
   }
 
+
   const handlePositions = () => {
     console.log("Downloading...");
   }
+
 
 
  
@@ -800,14 +850,18 @@ export default function Home() {
           >
             
             <button
-              className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2"
+              className="bg-red-200 text-red-500 font-semibold text-sm p-2 h mx-2"
               onClick={() => setIsPromptPopoverOpen(!isPromptPopoverOpen)}
             >
               Prompt
               {isPromptPopoverOpen ? <FontAwesomeIcon icon={faAngleDown} className="px-1" /> : <FontAwesomeIcon icon={faAngleUp} className="px-1" />}
             </button>
-            
           </Popover>
+          <button id="copyButton" className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={ (e) => {   
+            const event = new CustomEvent('frameCopy', { detail: {} });
+            document.dispatchEvent(event);}}>
+            <FontAwesomeIcon icon={faCopy} className="px-1" />
+          </button>
           <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
             e.preventDefault();
             document.dispatchEvent(new CustomEvent('undoChange'));
@@ -883,6 +937,12 @@ export default function Home() {
               // console.log(frame);
 
               const frame_constrained = frame >= totalFrames ? (totalFrames - 1) : frame < 0 ? 0 : frame;
+
+              
+              console.log ("frameCopy event triggered");
+              const copy_event = new CustomEvent('frameCopy', {detail : frame_constrained});
+              document.dispatchEvent (copy_event);
+
               setCurrentFrame(frame_constrained);
               const event = new CustomEvent('frameChange', { detail: frame_constrained });
               document.dispatchEvent(event);
