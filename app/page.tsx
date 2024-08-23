@@ -22,7 +22,7 @@ import {InterpolationWidget} from "./lib/interpolation_widget.js";
 import {loadGLTF, gltf_fragmentShaderSource, gltf_vertexShaderSource, renderScene} from "./lib/scenegraph/gltf_reader.js";
 import {m4} from "./lib/m4.js";
 import {initializeTorus, renderTorus} from "./lib/torus.js";
-
+import {MotionStack} from "./lib/motion_stack.js";
 import * as tf from "@tensorflow/tfjs";
 import {camera, initCamera, setCameraMatrix, getViewProjectionMatrix, adjustCamera} from "./lib/camera.js";
 //import * as webglUtils from 'webgl-utils.js';
@@ -65,6 +65,7 @@ export default function Home() {
     keyframe_widgets: KeyframeWidget[];
     actor: Actor | null;
     keyframe_creation_widget: KeyframeCreationWidget | null;
+    motion_stack: MotionStack;
   }
 
   let params: Params = {
@@ -78,7 +79,8 @@ export default function Home() {
     keyframe_inds: [],
     keyframe_widgets: [],
     actor: null,
-    keyframe_creation_widget: null
+    keyframe_creation_widget: null,
+    motion_stack: new MotionStack()
   };
 
   const tot_frames = num_frames;
@@ -271,6 +273,9 @@ export default function Home() {
       const handleInterpolate = async () => {
         if (actor) {
           action_log.push([window.performance.now(), "", "", "", "", "", "interpolate"]);
+          if(actor.smpl){
+            params.motion_stack.add_motion(actor.smpl.curr_As, actor.smpl.global_translation);
+          }
           await interpolationWidget.interpolate_all_frames(actor);
         }
       };
@@ -298,6 +303,10 @@ export default function Home() {
             actor.set_keyframe_all(pred_poses, pred_trans);
             await actor.update_all_poses();
             actor.skeletonRenderer.update_joints_all();
+
+            if(actor.smpl){
+              params.motion_stack.add_motion(actor.smpl.curr_As, actor.smpl.global_translation);
+            }
   
           } catch (error) {
             console.error('Error:', error);
@@ -693,6 +702,8 @@ export default function Home() {
     
     link.click(); // This will download the data file named "my_data.csv".
     console.log("Downloading...");
+
+    params.motion_stack.save_stack_to_file();
   }
 
 
