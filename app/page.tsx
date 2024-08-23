@@ -283,6 +283,7 @@ export default function Home() {
       
       const handleAutoDetailRequest = async () => {
         console.log("handling autodetail")
+        action_log.push([window.performance.now(), "", "", "", "", "", "auto detail"]);
         if (actor && actor.skeleton && actor.skeletonRenderer && actor.smpl) {
           console.log("auto detail request");
           try {
@@ -544,11 +545,29 @@ export default function Home() {
 
       }
 
+
       document.addEventListener ('redoChange', (e: Event) => {
         redoChange ();
       });
 
+      const handleDownload = () => {
 
+        if (actor) {
+          for (var i = 0; i < num_frames; i++) {
+            let [motion_A, motion_trans] = actor.get_keyframe_at_time (i);
+            params.motion_stack.add_motion(motion_A, motion_trans);
+          }
+        } else {
+          console.log ("not actor");
+        }
+    
+        params.motion_stack.save_stack_to_file();
+      }
+      document.addEventListener ('downloadFrames', (e: Event) => {
+        handleDownload ();
+      });
+
+      
   
       keyframeCreationWidget.timeline_div = document.getElementById('timeline'); // Ensure this line is executed after the DOM is loaded
       keyframeCreationWidget.createKeyframe_no_event(0);
@@ -703,7 +722,8 @@ export default function Home() {
     link.click(); // This will download the data file named "my_data.csv".
     console.log("Downloading...");
 
-    params.motion_stack.save_stack_to_file();
+    const event = new CustomEvent('downloadFrames');
+    document.dispatchEvent (event);
   }
 
 
