@@ -118,7 +118,7 @@ export class Actor {
     }
 
     get_keyframe_at_time(time){
-        return [this.smpl.full_pose[0][time], this.skeleton.translation[0][time].flat()];
+        return [this.smpl.full_pose[0][time], this.smpl.global_translation[0][time].flat()];
     }
 
     transfer_keyframes (oldTime, newTime) {
