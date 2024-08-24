@@ -100,6 +100,9 @@ export class Clickable {
     }
 
     checkRayTorusIntersection (rayDir, camera_pos) {
+        for (let shape of shapes) {
+            shape.isHovered = false;
+        }
         for (let ring of rings) {
             if (checkRayTorusIntersection (ring, rayDir, camera_pos, this.origin)) {
                 return true;

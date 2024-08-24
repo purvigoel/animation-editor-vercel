@@ -3,6 +3,11 @@ import * as tf from "@tensorflow/tfjs"
 export class MotionStack {
     constructor(){
         this.motion_stack = [];
+        this.n = 0;
+    }
+
+    clear() {
+        this.motion_stack = [];
     }
 
     add_motion(motion_A, motion_trans){
@@ -12,8 +17,9 @@ export class MotionStack {
     async save_stack_to_file() {
         if (typeof window !== 'undefined') {
             try {
+                const name = 'motion_stack_'+this.n+'.json';
                 const handle = await window.showSaveFilePicker({
-                    suggestedName: 'motion_stack.json',
+                    suggestedName: name,
                     types: [{
                         description: 'JSON Files',
                         accept: {'application/json': ['.json']},
@@ -34,6 +40,7 @@ export class MotionStack {
         } else {
             console.error("File System Access API is not available in this environment");
         }
+        this.n += 1;
     }
 
     async load_stack_from_file() {

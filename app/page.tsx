@@ -283,6 +283,7 @@ export default function Home() {
       
       const handleAutoDetailRequest = async () => {
         console.log("handling autodetail")
+        document.getElementsByTagName("body")[0].style.cursor = "progress";
         action_log.push([window.performance.now(), "", "", "", "", "", "auto detail"]);
         if (actor && actor.skeleton && actor.skeletonRenderer && actor.smpl) {
           console.log("auto detail request");
@@ -313,6 +314,7 @@ export default function Home() {
             console.error('Error:', error);
           }
         }
+        document.getElementsByTagName("body")[0].style.cursor = "default";
       };
       document.addEventListener('autoDetailRequest', handleAutoDetailRequest);
       
@@ -553,6 +555,7 @@ export default function Home() {
       const handleDownload = () => {
 
         if (actor) {
+          params.motion_stack.clear();
           for (var i = 0; i < num_frames; i++) {
             let [motion_A, motion_trans] = actor.get_keyframe_at_time (i);
             params.motion_stack.add_motion(motion_A, motion_trans);
