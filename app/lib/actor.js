@@ -156,7 +156,7 @@ export class Actor {
 
     async update_pose(frame, rotmat, joint){
         let [joints, A] = await this.smpl.update_pose_skinning(frame, rotmat, joint);
-        console.log("placed", joints.arraySync()[0][20]);
+        // console.log("placed", joints.arraySync()[0][20]);
         this.skeleton.update_skel_skinning(A, joints);
         var J_matrix = this.get_joints_at_time(frame);
         await this.skeletonRenderer.update_joints(J_matrix, frame);

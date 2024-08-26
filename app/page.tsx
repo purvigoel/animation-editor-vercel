@@ -7,7 +7,7 @@ import { Actor } from "./lib/actor";
 import {addAllEvents} from "./lib/key_handler.js";
 import {Timeline} from "./lib/timeline.js";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload, faCopy, faAngleDoubleRight, faAngleDown, faAngleUp } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faCopy, faUndo, faRedo, faUpload, faAngleDoubleRight, faAngleDown, faAngleUp } from '@fortawesome/free-solid-svg-icons';
 import { Popover } from 'react-tiny-popover';
 import { FloorRenderer } from "./lib/floor_renderer";
 // import {AngleControllerRenderer} from "./lib/angle_controller_renderer";
@@ -571,6 +571,25 @@ export default function Home() {
       });
 
       
+      const handleLoadFrames = async (e: FileReader) => {
+        let result = e.result as string
+        if (e.result && actor) {
+          result = JSON.parse(result);
+          console.log(result);
+          for (var i = 0; i < num_frames; i++) {
+            actor.set_keyframe_at_time(i, tf.tensor(result[i].motion_A), tf.tensor(result[i].motion_trans));
+            actor.update_pose (i, tf.tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]), 0);
+          }
+        }
+        
+        
+      }
+      document.addEventListener ('loadFrames', (e: Event) => {
+        let e_ = e as CustomEvent;
+        handleLoadFrames(e_.detail.target);
+      });
+
+      
   
       keyframeCreationWidget.timeline_div = document.getElementById('timeline'); // Ensure this line is executed after the DOM is loaded
       keyframeCreationWidget.createKeyframe_no_event(0);
@@ -861,8 +880,10 @@ export default function Home() {
     <div className="flex flex-col h-full" style={{ height: "100vh !important", paddingBottom: "3rem" }}>
       {/* Top bar */}
       <div className="bg-gray-100 p-2  ">
-        <div className="flex w-full justify-between">
-          <Popover
+        <div className="flex justify-between">
+          <div className = "w-1/12">
+          
+          {/* <Popover
             isOpen={isPopoverOpen}
             positions={['bottom']}
             content={popoverContent()}
@@ -876,7 +897,7 @@ export default function Home() {
               {isPopoverOpen ? <FontAwesomeIcon icon={faAngleDown} className="px-1" /> : <FontAwesomeIcon icon={faAngleUp} className="px-1" />}
             </button>
             
-          </Popover>
+          </Popover> */}
           <Popover
             isOpen={isPromptPopoverOpen}
             positions={['bottom']}
@@ -891,6 +912,9 @@ export default function Home() {
               {isPromptPopoverOpen ? <FontAwesomeIcon icon={faAngleDown} className="px-1" /> : <FontAwesomeIcon icon={faAngleUp} className="px-1" />}
             </button>
           </Popover>
+          </div>
+
+          <div className = "w-1/6">
           <button id="copyButton" className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={ (e) => {   
             const event = new CustomEvent('frameCopy', { detail: {} });
             document.dispatchEvent(event);}}>
@@ -900,19 +924,21 @@ export default function Home() {
             e.preventDefault();
             document.dispatchEvent(new CustomEvent('undoChange'));
           }}>
-            Undo
+            <FontAwesomeIcon icon={faUndo} className="px-1" />
           </button>
           <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
             e.preventDefault();
             document.dispatchEvent(new CustomEvent('redoChange'));
           }}>
-            Redo
+            <FontAwesomeIcon icon={faRedo} className="px-1" />
           </button>
+          </div>
+          <div className = "w-1/3">
           <button type="button" className="bg-green-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
             e.preventDefault();
             document.dispatchEvent(new CustomEvent('autoDetailRequest'));
           }}  onKeyDown={(e) => e.preventDefault()}>
-            Auto Detail
+            Auto Detail (AI)
           </button>
           <button type="button" className="bg-blue-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
             e.preventDefault();
@@ -920,7 +946,8 @@ export default function Home() {
           }}  onKeyDown={(e) => e.preventDefault()}>
             Interpolate
           </button>
-          <form className="flex">
+          </div>
+          {/* <form className="flex">
             <input
               type="number"
               name="angleInput"
@@ -946,11 +973,31 @@ export default function Home() {
             <span className="p-2 rounded mx-2 ">
               / {totalFrames}
             </span>
-          </form>
-          
+          </form> */}
+          <div className = "w-1/3">
           <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={handleDownload}>
             <FontAwesomeIcon icon={faDownload} className="px-1" />
           </button>
+          <input type="file" id="upload"></input>
+          <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={function() {
+            const fileElement =  document.getElementById('upload') as HTMLInputElement;
+            if (fileElement) {
+              var files = fileElement.files;
+              var fr = new FileReader();
+
+              fr.onload = function (e) {
+                console.log (e);
+                document.dispatchEvent (new CustomEvent('loadFrames', {detail: e}));
+              };
+
+              if (files)
+               fr.readAsText (files[0]);
+            }
+
+          }}>
+            <FontAwesomeIcon icon={faUpload} className="px-1" />
+          </button>
+          </div>
         </div>
 
       </div>
