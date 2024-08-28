@@ -7,7 +7,7 @@ import { Actor } from "./lib/actor";
 import {addAllEvents} from "./lib/key_handler.js";
 import {Timeline} from "./lib/timeline.js";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload, faCopy, faUndo, faRedo, faUpload, faAngleDoubleRight, faAngleDown, faAngleUp } from '@fortawesome/free-solid-svg-icons';
+import { faDownload, faCopy, faUndo, faRedo, faUpload, faTrash, faAngleDoubleRight, faAngleDown, faAngleUp } from '@fortawesome/free-solid-svg-icons';
 import { Popover } from 'react-tiny-popover';
 import { FloorRenderer } from "./lib/floor_renderer";
 // import {AngleControllerRenderer} from "./lib/angle_controller_renderer";
@@ -17,7 +17,7 @@ import {shadowDepthTextureView, shadowBindGroup, initLight, setLightMatrix} from
 import {addMouseEvents, undo_log, redo_log, action_log} from "./lib/mouse_handler.js";
 import {addAngleControl} from "./lib/angle_controller.js";
 import {KeyframeCreationWidget} from "./lib/keyframe_creation_widget.js";
-import {KeyframeWidget} from "./lib/keyframe_widget.js";
+import {KeyframeWidget, resize_slider} from "./lib/keyframe_widget.js";
 import {InterpolationWidget} from "./lib/interpolation_widget.js";
 import {loadGLTF, gltf_fragmentShaderSource, gltf_vertexShaderSource, renderScene} from "./lib/scenegraph/gltf_reader.js";
 import {m4} from "./lib/m4.js";
@@ -167,6 +167,11 @@ export default function Home() {
             sampleCount: 4
           });
           setLightMatrix (device, canvas);
+
+          resize_slider ();
+          for (let keyframe_widget of params.keyframe_widgets) {
+            keyframe_widget.resize ();
+          }
         }
       };
       
@@ -225,12 +230,17 @@ export default function Home() {
       });
 
       const handleFrameDelete = (frame: number) => {
+        if (frame == -1) {
+          frame = globalTimeline.curr_time;
+        }
         if (actor) {
           let data = actor.get_keyframe_at_time(frame);
           keyframeCreationWidget.deleteKeyframe(frame);
-          undo_log.push ({type: "delete", time: frame, pose: data[0], trans: data[1]});
+          undo_log.push ({type: "delete", time: frame, pose: tf.tensor(data[0]).arraySync(), trans: tf.tensor(data[1]).arraySync()});
           action_log.push ([window.performance.now(), frame, "", "", "", "", "delete"]);
         }
+        const hide_event = new CustomEvent ('hideContextMenu');
+        document.dispatchEvent (hide_event);
       }
       document.addEventListener('frameDelete', (e: Event) => handleFrameDelete((e as CustomEvent).detail));
 
@@ -284,6 +294,15 @@ export default function Home() {
       const handleAutoDetailRequest = async () => {
         console.log("handling autodetail")
         document.getElementsByTagName("body")[0].style.cursor = "progress";
+        let saved_keyframes: any[] = [];
+        if (actor && actor.smpl) {
+          for (let i of params.keyframe_inds) {
+            //console.log (i);
+            //console.log (tf.tensor(actor.smpl.full_pose[0][i]).arraySync());
+            saved_keyframes.push({time: i, pose: tf.tensor(actor.smpl.full_pose[0][i]).arraySync(), transform: tf.tensor(actor.smpl.global_translation[0][i]).arraySync()});
+          }
+        }
+        undo_log.push ({type: "autoDetail", saved: saved_keyframes});
         action_log.push([window.performance.now(), "", "", "", "", "", "auto detail"]);
         if (actor && actor.skeleton && actor.skeletonRenderer && actor.smpl) {
           console.log("auto detail request");
@@ -432,6 +451,19 @@ export default function Home() {
         console.log("Undo button clicked");
         if (undo_log.length == 0) {
           console.log ("Nothing to undo");
+          return;
+        }
+        if (undo_log.at(-1).type == "autoDetail" && actor) {
+          console.log ("undoing auto detail");
+          let undoInfo = undo_log.pop(); 
+          for (let entry of undoInfo.saved) {
+            //console.log("meow");
+            //console.log (entry.time);
+            //console.log (entry.pose);
+            actor.set_keyframe_at_time (entry.time, tf.tensor(entry.pose), tf.tensor(entry.transform));
+            actor.update_pose (entry.time, tf.tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]), 0);
+          }
+
           return;
         }
 
@@ -589,6 +621,24 @@ export default function Home() {
         handleLoadFrames(e_.detail.target);
       });
 
+      const hideContextMenu = () => {
+        const keyframeMenu = document.getElementById("keyframeMenu");
+        if (keyframeMenu) {
+          keyframeMenu.style.display = 'none';
+
+        }
+
+        const copyButton = document.getElementById("copyButton");
+        if (copyButton) {
+          copyFrame = -1;
+          copyButton.style.backgroundColor = "rgb(255, 197, 181)"
+        }
+        
+      }
+
+      document.addEventListener ('hideContextMenu', (e: Event) => {
+        hideContextMenu();
+      })
       
   
       keyframeCreationWidget.timeline_div = document.getElementById('timeline'); // Ensure this line is executed after the DOM is loaded
@@ -618,6 +668,7 @@ export default function Home() {
         lastFrameTime = timestamp;
 
         if (!params["draw_once"]){
+          //console.log("meow");
             globalTimeline.increment_time();
             globalTimeline.increment_time_visual();
             params["currTime"] = globalTimeline.curr_time;
@@ -626,7 +677,7 @@ export default function Home() {
         if(loaded){
           params["draw_once"] = false;
         }
-  
+
         setCurrentFrame(globalTimeline.curr_time);
         setCameraMatrix (device, canvas);
         if (actor && actor.actorRenderer) {
@@ -873,53 +924,50 @@ export default function Home() {
     );
   };
 
-
+  /*const promptContextMenu = () => {
+    return (
+      <div className="bg-white text-gray-500 p-3 border border-gray-300 w-50 rounded shadow ml-4">
+        <div className="flex flex-row items-center mb-2">
+          <input
+            type="text"
+            className="w-full bg-white border border-gray-300 rounded p-2"
+            placeholder="Enter prompt"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === ' ') {
+                e.stopPropagation();
+              }
+            }}
+          />
+          <button
+            className="bg-blue-500 text-white font-semibold p-2 rounded ml-2"
+            onClick={(e) => {
+              e.preventDefault();
+              document.dispatchEvent(new CustomEvent('promptSubmit', {detail: {prompt_val: prompt}}));
+            }}
+          >
+            Enter
+          </button>
+        </div>
+      </div>
+    );
+  }
+  document.addEventListener ('promptContextMenu', (e: Event) => {
+    promptContextMenu ();
+  });*/
 
   return (
 
     <div className="flex flex-col h-full" style={{ height: "100vh !important", paddingBottom: "3rem" }}>
       {/* Top bar */}
-      <div className="bg-gray-100 p-2  ">
+      <div className="bg-gray-100 p-2  " onClick={(e)=> {
+          const hide_event = new CustomEvent ('hideContextMenu');
+          document.dispatchEvent (hide_event);
+      }}>
         <div className="flex justify-between">
-          <div className = "w-1/12">
-          
-          {/* <Popover
-            isOpen={isPopoverOpen}
-            positions={['bottom']}
-            content={popoverContent()}
-          >
-            
-            <button
-              className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2"
-              onClick={() => setIsPopoverOpen(!isPopoverOpen)}
-            >
-              Joints
-              {isPopoverOpen ? <FontAwesomeIcon icon={faAngleDown} className="px-1" /> : <FontAwesomeIcon icon={faAngleUp} className="px-1" />}
-            </button>
-            
-          </Popover> */}
-          <Popover
-            isOpen={isPromptPopoverOpen}
-            positions={['bottom']}
-            content={promptPopoverContent()}
-          >
-            
-            <button
-              className="bg-red-200 text-red-500 font-semibold text-sm p-2 h mx-2"
-              onClick={() => setIsPromptPopoverOpen(!isPromptPopoverOpen)}
-            >
-              Prompt
-              {isPromptPopoverOpen ? <FontAwesomeIcon icon={faAngleDown} className="px-1" /> : <FontAwesomeIcon icon={faAngleUp} className="px-1" />}
-            </button>
-          </Popover>
-          </div>
 
           <div className = "w-1/6">
-          <button id="copyButton" className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={ (e) => {   
-            const event = new CustomEvent('frameCopy', { detail: {} });
-            document.dispatchEvent(event);}}>
-            <FontAwesomeIcon icon={faCopy} className="px-1" />
-          </button>
           <button className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
             e.preventDefault();
             document.dispatchEvent(new CustomEvent('undoChange'));
@@ -932,6 +980,11 @@ export default function Home() {
           }}>
             <FontAwesomeIcon icon={faRedo} className="px-1" />
           </button>
+          {/* <button id="copyButton" className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={ (e) => {   
+            const event = new CustomEvent('frameCopy', { detail: {} });
+            document.dispatchEvent(event);}}>
+            <FontAwesomeIcon icon={faCopy} className="px-1" />
+          </button> */}
           </div>
           <div className = "w-1/3">
           <button type="button" className="bg-green-200 text-blue-500 font-semibold text-sm p-2 rounded mx-2" onClick={(e) => {
@@ -946,6 +999,20 @@ export default function Home() {
           }}  onKeyDown={(e) => e.preventDefault()}>
             Interpolate
           </button>
+          <Popover
+            isOpen={isPromptPopoverOpen}
+            positions={['bottom']}
+            content={promptPopoverContent()}
+          >
+            
+            <button
+              className="bg-red-200 text-red-500 font-semibold text-sm p-2 h mx-2"
+              onClick={() => setIsPromptPopoverOpen(!isPromptPopoverOpen)}
+            >
+              Prompt
+              {isPromptPopoverOpen ? <FontAwesomeIcon icon={faAngleDown} className="px-1" /> : <FontAwesomeIcon icon={faAngleUp} className="px-1" />}
+            </button>
+          </Popover>
           </div>
           {/* <form className="flex">
             <input
@@ -1006,6 +1073,10 @@ export default function Home() {
         <canvas id="mainCanvas" className="border border-red-300 h-full"></canvas>
       </div>
       {/* Bottom bar */}
+
+
+
+
       <div className="p-2 fixed bottom-0 w-full bg-gray-100"
         style={{ height: "3rem" }}
       >
@@ -1030,9 +1101,27 @@ export default function Home() {
             } else {
               setCurrentFrame(0);
             }
+          }} onClick={(e)=> {
+            const hide_event = new CustomEvent ('hideContextMenu');
+            document.dispatchEvent (hide_event);
           }} />
           <div className="ml-3 mr-1">{totalFrames}</div>
         </div>
+      </div>
+
+      
+
+      <div id="keyframeMenu" style={{display:'none', position:'absolute'}}>
+        <button id="copyButton" className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={ (e) => {   
+              const event = new CustomEvent('frameCopy', { detail: {} });
+              document.dispatchEvent(event);}}>
+              <FontAwesomeIcon icon={faCopy} className="px-1" />
+        </button>
+        <button id="deleteButton" className="bg-red-200 text-red-500 font-semibold text-sm p-2 rounded mx-2" onClick={ (e) => {   
+              const event = new CustomEvent('frameDelete', { detail: -1 });
+              document.dispatchEvent(event);}}>
+              <FontAwesomeIcon icon={faTrash} className="px-1" />
+        </button>         
       </div>
       
     </div>

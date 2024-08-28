@@ -50,6 +50,10 @@ export function addMouseEvents(canvas, clickables, render, params) {
                 }*/
             }
 
+            for (let clickable of clickables) {
+                clickable.isHovered = false;
+            }
+
             for (var i = 0; i < clickables.length; i++) {
                 var clickable = clickables[i];
                 var hover = clickable.checkRaySphereIntersection(rayDir, camera_pos);
@@ -67,6 +71,7 @@ export function addMouseEvents(canvas, clickables, render, params) {
                     clickable.isHovered = true;
                     params["draw_once"] = true;
                     render();
+                    return;
                 } else {
                     clickable.isHovered = false;
                 }

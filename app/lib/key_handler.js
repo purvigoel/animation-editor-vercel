@@ -9,12 +9,14 @@ function handleScroll(event, render) {
 }
 
 function handleMouseDown(event, render) {
+    const hide_event = new CustomEvent ('hideContextMenu');
+    document.dispatchEvent (hide_event);
     if (camera.locked) { camera.isDragging = false; return; }
     camera.isDragging = true;
     camera.lastMousePosition = { x: event.clientX, y: event.clientY };
 }
 
-function handleMouseMove(event, render) {
+function handleMouseMove(event, render, params) {
     if (camera.locked) return;
     if (!camera.isDragging) return;
     const deltaX = event.clientX - camera.lastMousePosition.x;
@@ -71,8 +73,9 @@ export function addAllEvents(canvas, render, params){
         handleMouseDown(event, render);
     });
     canvas.addEventListener('mousemove', function(event){
-        params["draw_once"] = true;
-        handleMouseMove(event, render);
+        if (params["pause"])
+            params["draw_once"] = true;
+        handleMouseMove(event, render, params);
     });
     canvas.addEventListener('mouseup', function(event) {
         params["draw_once"] = true;

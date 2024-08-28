@@ -1,5 +1,15 @@
 import {undo_log, action_log} from "./mouse_handler.js";
 
+let slider = null;
+let sliderRect = null;
+let slider_val = null;
+
+export function resize_slider () {
+    slider = document.querySelector('#timeline-slider');
+    sliderRect = slider.getBoundingClientRect();
+    slider_val = parseInt(slider.value, 10)
+}
+
 export class KeyframeWidget {
     constructor(time, tot_frames, params, index, keyframeUpdator){
         this.tot_frames = tot_frames;
@@ -13,7 +23,17 @@ export class KeyframeWidget {
         this.isDragging = false;
         this.index = index;
         this.keyframeUpdator = keyframeUpdator;
+
     }
+
+    resize () {
+        if (this.vis_dot != null) {
+            this.vis_dot.style.left = `${(this.time / slider.max) * sliderRect.width + sliderRect.left - 10}px`;
+            const keyframeMenu = document.getElementById("keyframeMenu");
+            keyframeMenu.style.left = this.vis_dot.style.left;
+        }
+    }
+
 
     showKeyframeOnTimeline(timeline_div){
         // Assuming you have a canvas or a div to draw the dot
@@ -21,10 +41,7 @@ export class KeyframeWidget {
         dot.draggable = true;
         dot.style.position = 'absolute';
         //dot.style.left = `${(this.time / this.tot_frames) * 100}%`;
-        const slider = document.querySelector('#timeline-slider');
-        const sliderRect = slider.getBoundingClientRect();
-        const slider_val = parseInt(slider.value, 10)
-        let thumbPosition = (slider_val / slider.max) * sliderRect.width + sliderRect.left - 10;
+        let thumbPosition = (this.time / slider.max) * sliderRect.width + sliderRect.left - 10;
         dot.setAttribute('tabindex', '0');
         dot.style.left = `${thumbPosition}px`;
         dot.style.width = '20px';
@@ -47,9 +64,10 @@ export class KeyframeWidget {
                 
             } else {
                 this.select();
-                this.selected = true;
             }   
             
+            const hide_event = new CustomEvent ('hideContextMenu');
+            document.dispatchEvent (hide_event);
         });
 
 
@@ -66,6 +84,24 @@ export class KeyframeWidget {
                 }
             }
 
+        });
+
+        dot.addEventListener ('contextmenu', (e) => {
+            e.preventDefault();
+
+            /* select this dot */
+            const event = new CustomEvent('frameChange', { detail: this.time });
+            document.dispatchEvent(event);
+            this.select();
+
+            const keyframeMenu = document.getElementById("keyframeMenu");
+            console.log (keyframeMenu.style.display );
+
+            keyframeMenu.style.display ='block';
+            keyframeMenu.style.left = dot.style.left;
+            keyframeMenu.style.bottom = '4%';
+
+            console.log (keyframeMenu.style.display );
         });
 
 
@@ -184,6 +220,25 @@ export class KeyframeWidget {
             //dot.style.backgroundColor="yellow";
             this.select();
         });
+
+        dot.addEventListener ('contextmenu', (e) => {
+            e.preventDefault();
+
+            /* select this dot */
+            const event = new CustomEvent('frameChange', { detail: this.time });
+            document.dispatchEvent(event);
+            this.select();
+
+            const keyframeMenu = document.getElementById("keyframeMenu");
+            console.log (keyframeMenu.style.display );
+
+            keyframeMenu.style.display ='block';
+            keyframeMenu.style.left = dot.style.left;
+            keyframeMenu.style.bottom = '4%';
+
+            console.log (keyframeMenu.style.display );
+        });
+
         if(time > 0 && time < this.tot_frames){
             dot.addEventListener('mousedown', (e) => {
                 this.isDragging = true;
