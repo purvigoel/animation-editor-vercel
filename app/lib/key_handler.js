@@ -28,7 +28,7 @@ function handleMouseMove(event, render, params) {
 
     camera.phi = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.phi));
 
-    render();
+    // render();
 }
 
 function handleKeyDown(canvas, event, render, params) {

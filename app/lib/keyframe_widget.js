@@ -56,6 +56,9 @@ export class KeyframeWidget {
 
         dot.addEventListener('click', () => {
             //console.log("click");
+            const copy_event = new CustomEvent('frameCopy', {detail : this.time});
+            document.dispatchEvent (copy_event);
+
             const event = new CustomEvent('frameChange', { detail: this.time });
             document.dispatchEvent(event);
             //dot.style.backgroundColor="yellow";

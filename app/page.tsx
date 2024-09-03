@@ -239,22 +239,24 @@ export default function Home() {
           undo_log.push ({type: "delete", time: frame, pose: tf.tensor(data[0]).arraySync(), trans: tf.tensor(data[1]).arraySync()});
           action_log.push ([window.performance.now(), frame, "", "", "", "", "delete"]);
         }
+      }
+      document.addEventListener('frameDelete', (e: Event) => {handleFrameDelete((e as CustomEvent).detail); 
         const hide_event = new CustomEvent ('hideContextMenu');
         document.dispatchEvent (hide_event);
-      }
-      document.addEventListener('frameDelete', (e: Event) => handleFrameDelete((e as CustomEvent).detail));
+      });
 
       const handleFrameCopy = (frame: number) => {
         if (copyFrame == -1 && isNaN(frame)) {
           //console.log("current time: %d", globalTimeline.curr_time);
           copyFrame = globalTimeline.curr_time;
         } else if (copyFrame != -1) {
-          //console.log ("copying frame %d to %d", copyFrame, frame);
+          // console.log ("copying frame %d to %d", copyFrame, frame);
           if (!isNaN(frame)) {
             if (actor && globalTimeline) {
               if ((params.keyframe_inds.indexOf(frame) > -1)) {
                 handleFrameDelete (frame);
               } 
+              
               params.keyframe_creation_widget?.createKeyframe(frame);
               actor.transfer_keyframes (copyFrame, frame);
             }
